@@ -88,12 +88,11 @@ func main() {
 
 	// Variables to track the current box and scroll positions
 	currentBox := 2 // Start with the search box highlighted
-	scrollPositions := []int{0, 0, 0, 0, 0}
-	selectedIndices := []int{0, 0, 0, 0, 0}
+	scrollPositions := []int{0, 0, 0, 0}
+	selectedIndices := []int{0, 0, 0, 0}
 
-	// Buffer for user input in the search and commands boxes
+	// Buffer for user input in the search box
 	var userInput []rune
-	var commandInput []rune
 
 	// Blinking cursor state
 	cursorVisible := true
@@ -126,18 +125,16 @@ func main() {
 			boxWidth := width / 2
 			boxHeight := height / 2
 			halfBoxHeight := boxHeight / 2
-			thirdBoxWidth := width / 3
 			increasedBoxHeight := boxHeight + halfBoxHeight
 
 			// Draw borders for the boxes
-			drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, tealStyle)                                                   // Directories
-			drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, tealStyle)                                               // Files
-			drawBorder(screen, 0, increasedBoxHeight, thirdBoxWidth-1, increasedBoxHeight+halfBoxHeight-1, tealStyle)               // Search
-			drawBorder(screen, thirdBoxWidth, increasedBoxHeight, thirdBoxWidth*2-1, increasedBoxHeight+halfBoxHeight-1, tealStyle) // Commands
-			drawBorder(screen, thirdBoxWidth*2, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, tealStyle)         // Dot Files
+			drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, tealStyle)                                    // Directories
+			drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, tealStyle)                                // Files
+			drawBorder(screen, 0, increasedBoxHeight, boxWidth-1, increasedBoxHeight+halfBoxHeight-1, tealStyle)     // Search
+			drawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, tealStyle) // Dot Files
 
 			// Display titles for the boxes
-			titles := []string{"Directories", "Files", "Search", "Commands", "Dot Files"}
+			titles := []string{"Directories", "Files", "Search", "Dot Files"}
 			for i, title := range titles {
 				var x, y int
 				switch i {
@@ -148,9 +145,7 @@ func main() {
 				case 2:
 					x, y = 0, increasedBoxHeight
 				case 3:
-					x, y = thirdBoxWidth, increasedBoxHeight
-				case 4:
-					x, y = thirdBoxWidth*2, increasedBoxHeight
+					x, y = boxWidth, increasedBoxHeight
 				}
 				for j, r := range title {
 					screen.SetContent(x+1+j, y, r, nil, whiteStyle)
@@ -159,7 +154,6 @@ func main() {
 
 			// Convert user input to string
 			inputStr := string(userInput)
-			commandStr := string(commandInput)
 
 			// Filter file lists based on user input
 			filteredDirectories := filterFiles(directories, inputStr)
@@ -178,9 +172,7 @@ func main() {
 				case 2:
 					x, y, maxHeight = 0, increasedBoxHeight, halfBoxHeight
 				case 3:
-					x, y, maxHeight = thirdBoxWidth, increasedBoxHeight, halfBoxHeight
-				case 4:
-					x, y, maxHeight = thirdBoxWidth*2, increasedBoxHeight, halfBoxHeight
+					x, y, maxHeight = boxWidth, increasedBoxHeight, halfBoxHeight
 				}
 				if box != nil {
 					for j := scrollPositions[i]; j < len(box) && j < scrollPositions[i]+maxHeight-1; j++ {
@@ -195,20 +187,14 @@ func main() {
 				}
 			}
 
-			// Display user input in the search and commands boxes
+			// Display user input in the search box
 			for i, r := range userInput {
 				screen.SetContent(1+i, increasedBoxHeight+1, r, nil, whiteStyle)
 			}
-			for i, r := range commandInput {
-				screen.SetContent(thirdBoxWidth+1+i, increasedBoxHeight+1, r, nil, whiteStyle)
-			}
 
-			// Display blinking cursor in the search and commands boxes if they are highlighted
+			// Display blinking cursor in the search box if it is highlighted
 			if currentBox == 2 && cursorVisible {
 				screen.SetContent(1+len(userInput), increasedBoxHeight+1, '_', nil, whiteStyle)
-			}
-			if currentBox == 3 && cursorVisible {
-				screen.SetContent(thirdBoxWidth+1+len(commandInput), increasedBoxHeight+1, '_', nil, whiteStyle)
 			}
 
 			screen.Show()
@@ -221,7 +207,7 @@ func main() {
 				case tcell.KeyEscape, tcell.KeyCtrlC:
 					return
 				case tcell.KeyTab:
-					currentBox = (currentBox + 1) % 5
+					currentBox = (currentBox + 1) % 4
 				case tcell.KeyUp:
 					if selectedIndices[currentBox] > 0 {
 						selectedIndices[currentBox]--
@@ -235,7 +221,7 @@ func main() {
 					switch currentBox {
 					case 0, 1:
 						maxHeight = increasedBoxHeight
-					case 2, 3, 4:
+					case 2, 3:
 						maxHeight = halfBoxHeight
 					}
 					if selectedIndices[currentBox] < len(boxes[currentBox])-1 {
@@ -250,10 +236,6 @@ func main() {
 							screen.Fini()
 							changeDirectoryAndRerun("..")
 						}
-					} else if currentBox == 3 { // Commands box
-						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
-						screen.Fini()
-						runCommandOnFile(commandStr, selectedFile.Name)
 					} else {
 						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 						if currentBox == 0 { // Directory
@@ -266,15 +248,48 @@ func main() {
 				case tcell.KeyBackspace, tcell.KeyBackspace2:
 					if currentBox == 2 && len(userInput) > 0 {
 						userInput = userInput[:len(userInput)-1]
-					} else if currentBox == 3 && len(commandInput) > 0 {
-						commandInput = commandInput[:len(commandInput)-1]
 					}
 				default:
 					if ev.Rune() != 0 {
 						if currentBox == 2 {
 							userInput = append(userInput, ev.Rune())
-						} else if currentBox == 3 {
-							commandInput = append(commandInput, ev.Rune())
+						}
+					}
+				}
+			case *tcell.EventMouse:
+				x, y := ev.Position()
+				if ev.Buttons() == tcell.Button1 {
+					// Determine which box was clicked
+					if y < increasedBoxHeight {
+						if x < boxWidth {
+							currentBox = 0 // Directories
+						} else {
+							currentBox = 1 // Files
+						}
+					} else if y < increasedBoxHeight+halfBoxHeight {
+						if x < boxWidth {
+							currentBox = 2 // Search
+						} else {
+							currentBox = 3 // Dot Files
+						}
+					}
+
+					// Determine which file or directory was clicked
+					if currentBox != 2 { // Not the search box
+						var boxStartY int
+						switch currentBox {
+						case 0:
+							boxStartY = 0
+						case 1:
+							boxStartY = 0
+						case 2:
+							boxStartY = increasedBoxHeight
+						case 3:
+							boxStartY = increasedBoxHeight
+						}
+						clickedIndex := y - boxStartY - 1 + scrollPositions[currentBox]
+						if clickedIndex >= 0 && clickedIndex < len(boxes[currentBox]) {
+							selectedIndices[currentBox] = clickedIndex
 						}
 					}
 				}
@@ -301,62 +316,74 @@ func drawBorder(screen tcell.Screen, x1, y1, x2, y2 int, style tcell.Style) {
 }
 
 func showCommandPopup(screen tcell.Screen, fileName string) {
-	commands := []string{"cat", "head", "tail", "nano", "vim", "nvim"}
-	selectedIndex := 0
+	var commandInput []rune
+	cursorVisible := true
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
 
 	for {
-		screen.Clear()
+		select {
+		case <-ticker.C:
+			cursorVisible = !cursorVisible
+		default:
+			screen.Clear()
 
-		// Get terminal dimensions
-		width, height := screen.Size()
+			// Get terminal dimensions
+			width, height := screen.Size()
 
-		// Define styles
-		whiteStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-		highlightStyle := tcell.StyleDefault.Foreground(tcell.ColorLightSkyBlue).Bold(true)
+			// Define styles
+			whiteStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+			//highlightStyle := tcell.StyleDefault.Foreground(tcell.ColorLightSkyBlue).Bold(true)
 
-		// Draw border for the popup
-		popupWidth := 30
-		popupHeight := len(commands) + 2
-		x1 := (width - popupWidth) / 2
-		y1 := (height - popupHeight) / 2
-		x2 := x1 + popupWidth - 1
-		y2 := y1 + popupHeight - 1
-		drawBorder(screen, x1, y1, x2, y2, whiteStyle)
+			// Draw border for the popup
+			popupWidth := 50
+			popupHeight := 5
+			x1 := (width - popupWidth) / 2
+			y1 := (height - popupHeight) / 2
+			x2 := x1 + popupWidth - 1
+			y2 := y1 + popupHeight - 1
+			drawBorder(screen, x1, y1, x2, y2, whiteStyle)
 
-		// Display commands in the popup
-		for i, cmd := range commands {
-			style := whiteStyle
-			if i == selectedIndex {
-				style = highlightStyle
+			// Display prompt
+			prompt := "Enter command:"
+			for i, r := range prompt {
+				screen.SetContent(x1+2+i, y1+2, r, nil, whiteStyle)
 			}
-			for j, r := range cmd {
-				screen.SetContent(x1+1+j, y1+1+i, r, nil, style)
+
+			// Display user input
+			for i, r := range commandInput {
+				screen.SetContent(x1+2+len(prompt)+1+i, y1+2, r, nil, whiteStyle)
 			}
-		}
 
-		screen.Show()
+			// Display blinking cursor
+			if cursorVisible {
+				screen.SetContent(x1+2+len(prompt)+1+len(commandInput), y1+2, '_', nil, whiteStyle)
+			}
 
-		// Handle user input
-		ev := screen.PollEvent()
-		switch ev := ev.(type) {
-		case *tcell.EventKey:
-			switch ev.Key() {
-			case tcell.KeyEscape, tcell.KeyCtrlC:
-				return
-			case tcell.KeyUp:
-				if selectedIndex > 0 {
-					selectedIndex--
+			screen.Show()
+
+			// Handle user input
+			ev := screen.PollEvent()
+			switch ev := ev.(type) {
+			case *tcell.EventKey:
+				switch ev.Key() {
+				case tcell.KeyEscape, tcell.KeyCtrlC:
+					return
+				case tcell.KeyEnter:
+					screen.Fini()
+					runCommandOnFile(string(commandInput), fileName)
+				case tcell.KeyBackspace, tcell.KeyBackspace2:
+					if len(commandInput) > 0 {
+						commandInput = commandInput[:len(commandInput)-1]
+					}
+				default:
+					if ev.Rune() != 0 {
+						commandInput = append(commandInput, ev.Rune())
+					}
 				}
-			case tcell.KeyDown:
-				if selectedIndex < len(commands)-1 {
-					selectedIndex++
-				}
-			case tcell.KeyEnter:
-				screen.Fini()
-				runCommandOnFile(commands[selectedIndex], fileName)
+			case *tcell.EventResize:
+				screen.Sync()
 			}
-		case *tcell.EventResize:
-			screen.Sync()
 		}
 	}
 }
