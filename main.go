@@ -99,7 +99,10 @@ func main() {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	// Main loop
+	// Add a variable to track the best search result match
+	var bestMatch *FileInfo
+
+	// Modify the main loop to update the best match based on user input
 	for {
 		select {
 		case <-ticker.C:
@@ -160,6 +163,9 @@ func main() {
 			filteredFiles := filterFiles(regularFiles, inputStr)
 			filteredHiddenFiles := filterFiles(hiddenFiles, inputStr)
 
+			// Find the best match
+			bestMatch = findBestMatch(filteredDirectories, filteredFiles, filteredHiddenFiles, inputStr)
+
 			// Display file information in the boxes
 			boxes := [][]FileInfo{filteredDirectories, filteredFiles, nil, filteredHiddenFiles}
 			for i, box := range boxes {
@@ -179,6 +185,10 @@ func main() {
 						file := box[j]
 						style := whiteStyle
 						if j == selectedIndices[i] && currentBox == i {
+							style = highlightStyle
+						}
+						// Highlight the best match in the search box
+						if currentBox == 2 && bestMatch != nil && file.Name == bestMatch.Name {
 							style = highlightStyle
 						}
 						// Display file information with custom colors
@@ -231,11 +241,8 @@ func main() {
 						}
 					}
 				case tcell.KeyEnter:
-					if currentBox == 2 { // Search box
-						if inputStr == ".." {
-							screen.Fini()
-							changeDirectoryAndRerun("..")
-						}
+					if currentBox == 2 && bestMatch != nil { // Search box
+						showCommandPopup(screen, bestMatch.Name)
 					} else {
 						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 						if currentBox == 0 { // Directory
@@ -298,6 +305,19 @@ func main() {
 			}
 		}
 	}
+}
+
+// Function to find the best match based on user input
+func findBestMatch(directories, files, hiddenFiles []FileInfo, query string) *FileInfo {
+	allFiles := append(directories, append(files, hiddenFiles...)...)
+	var bestMatch *FileInfo
+	for _, file := range allFiles {
+		if strings.Contains(strings.ToLower(file.Name), strings.ToLower(query)) {
+			bestMatch = &file
+			break
+		}
+	}
+	return bestMatch
 }
 
 func drawBorder(screen tcell.Screen, x1, y1, x2, y2 int, style tcell.Style) {

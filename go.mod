@@ -1,4 +1,4 @@
-module lafd
+module ladf
 
 // switch this to 1.18 to work with Ubuntu's outdated package (or update Go)
 go 1.23
