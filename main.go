@@ -117,6 +117,8 @@ func main() {
 			whiteStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 			tealStyle := tcell.StyleDefault.Foreground(tcell.ColorTeal)
 			highlightStyle := tcell.StyleDefault.Foreground(tcell.ColorLightSkyBlue).Bold(true)
+			commandStyle := tcell.StyleDefault.Foreground(tcell.ColorPurple)
+			blinkingStyle := tcell.StyleDefault.Foreground(tcell.ColorLimeGreen).Bold(true)
 			permissionsTitleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
 			permissionsValueStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen)
 			ownerTitleStyle := tcell.StyleDefault.Foreground(tcell.ColorFuchsia)
@@ -189,11 +191,44 @@ func main() {
 						}
 						// Highlight the best match in the search box
 						if currentBox == 2 && bestMatch != nil && file.Name == bestMatch.Name {
-							style = highlightStyle
+							style = commandStyle
 						}
 						// Display file information with custom colors
 						displayFileInfo(screen, x+5, y+j-scrollPositions[i]+1, boxWidth-1, file, style, permissionsTitleStyle, permissionsValueStyle, ownerTitleStyle, ownerValueStyle, executableTitleStyle, executableValueStyle)
 					}
+				}
+			}
+
+			// Define the ASCII art
+			asciiArt := `
+		 ___               _____  ______
+			| |        /\    |  __ \ | ____|
+			| |       /  \   | |  | || |__
+			| |      / /\ \  | |  | || |__|
+			| |___  / ____ \ | |__| || |
+			|_____|/_/    \_\|_____/ |_|`
+
+			// Calculate the starting position for the ASCII art
+			asciiArtLines := strings.Split(asciiArt, "\n")
+			asciiArtHeight := len(asciiArtLines)
+			asciiArtWidth := 0
+			for _, line := range asciiArtLines {
+				if len(line) > asciiArtWidth {
+					asciiArtWidth = len(line)
+				}
+			}
+
+			// Calculate the position for the ASCII art
+			asciiHeight := 8 // One-fourth of the description window height
+			asciiBoxYEnd := boxHeight
+			asciiBoxYStart := asciiBoxYEnd - asciiHeight
+			asciiArtX := boxWidth + boxWidth - asciiArtWidth - 1 // Adjusted to place it on the right side
+			asciiArtY := asciiBoxYStart - asciiArtHeight + 24    // Adjusted to move it further down
+
+			// Render the ASCII art in the background
+			for y, line := range asciiArtLines {
+				for x, r := range line {
+					screen.SetContent(asciiArtX+x, asciiArtY+y, r, nil, tealStyle)
 				}
 			}
 
@@ -204,7 +239,7 @@ func main() {
 
 			// Display blinking cursor in the search box if it is highlighted
 			if currentBox == 2 && cursorVisible {
-				screen.SetContent(1+len(userInput), increasedBoxHeight+1, '_', nil, whiteStyle)
+				screen.SetContent(1+len(userInput), increasedBoxHeight+1, '_', nil, blinkingStyle)
 			}
 
 			screen.Show()
