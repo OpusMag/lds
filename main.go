@@ -88,11 +88,12 @@ func main() {
 
 	// Variables to track the current box and scroll positions
 	currentBox := 2 // Start with the search box highlighted
-	scrollPositions := []int{0, 0, 0, 0}
-	selectedIndices := []int{0, 0, 0, 0}
+	scrollPositions := []int{0, 0, 0, 0, 0}
+	selectedIndices := []int{0, 0, 0, 0, 0}
 
-	// Buffer for user input in the search box
+	// Buffer for user input in the search and commands boxes
 	var userInput []rune
+	var commandInput []rune
 
 	// Blinking cursor state
 	cursorVisible := true
@@ -124,16 +125,19 @@ func main() {
 			// Calculate box dimensions
 			boxWidth := width / 2
 			boxHeight := height / 2
-			quarterBoxHeight := boxHeight / 4
+			halfBoxHeight := boxHeight / 2
+			thirdBoxWidth := width / 3
+			increasedBoxHeight := boxHeight + halfBoxHeight
 
 			// Draw borders for the boxes
-			drawBorder(screen, 0, 0, boxWidth-1, height-1, tealStyle)                           // Directories
-			drawBorder(screen, boxWidth, 0, width-1, height-1, tealStyle)                       // Files
-			drawBorder(screen, 0, height-quarterBoxHeight, boxWidth-1, height-1, tealStyle)     // Search
-			drawBorder(screen, boxWidth, height-quarterBoxHeight, width-1, height-1, tealStyle) // Dot Files
+			drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, tealStyle)                                                   // Directories
+			drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, tealStyle)                                               // Files
+			drawBorder(screen, 0, increasedBoxHeight, thirdBoxWidth-1, increasedBoxHeight+halfBoxHeight-1, tealStyle)               // Search
+			drawBorder(screen, thirdBoxWidth, increasedBoxHeight, thirdBoxWidth*2-1, increasedBoxHeight+halfBoxHeight-1, tealStyle) // Commands
+			drawBorder(screen, thirdBoxWidth*2, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, tealStyle)         // Dot Files
 
 			// Display titles for the boxes
-			titles := []string{"Directories", "Files", "Search", "Dot Files"}
+			titles := []string{"Directories", "Files", "Search", "Commands", "Dot Files"}
 			for i, title := range titles {
 				var x, y int
 				switch i {
@@ -142,9 +146,11 @@ func main() {
 				case 1:
 					x, y = boxWidth, 0
 				case 2:
-					x, y = 0, height-quarterBoxHeight
+					x, y = 0, increasedBoxHeight
 				case 3:
-					x, y = boxWidth, height-quarterBoxHeight
+					x, y = thirdBoxWidth, increasedBoxHeight
+				case 4:
+					x, y = thirdBoxWidth*2, increasedBoxHeight
 				}
 				for j, r := range title {
 					screen.SetContent(x+1+j, y, r, nil, whiteStyle)
@@ -153,6 +159,7 @@ func main() {
 
 			// Convert user input to string
 			inputStr := string(userInput)
+			commandStr := string(commandInput)
 
 			// Filter file lists based on user input
 			filteredDirectories := filterFiles(directories, inputStr)
@@ -165,13 +172,15 @@ func main() {
 				var x, y, maxHeight int
 				switch i {
 				case 0:
-					x, y, maxHeight = 0, 0, height-quarterBoxHeight
+					x, y, maxHeight = 0, 0, increasedBoxHeight
 				case 1:
-					x, y, maxHeight = boxWidth, 0, height-quarterBoxHeight
+					x, y, maxHeight = boxWidth, 0, increasedBoxHeight
 				case 2:
-					x, y, maxHeight = 0, height-quarterBoxHeight, quarterBoxHeight
+					x, y, maxHeight = 0, increasedBoxHeight, halfBoxHeight
 				case 3:
-					x, y, maxHeight = boxWidth, height-quarterBoxHeight, quarterBoxHeight
+					x, y, maxHeight = thirdBoxWidth, increasedBoxHeight, halfBoxHeight
+				case 4:
+					x, y, maxHeight = thirdBoxWidth*2, increasedBoxHeight, halfBoxHeight
 				}
 				if box != nil {
 					for j := scrollPositions[i]; j < len(box) && j < scrollPositions[i]+maxHeight-1; j++ {
@@ -186,14 +195,20 @@ func main() {
 				}
 			}
 
-			// Display user input in the search box
+			// Display user input in the search and commands boxes
 			for i, r := range userInput {
-				screen.SetContent(1+i, height-quarterBoxHeight+1, r, nil, whiteStyle)
+				screen.SetContent(1+i, increasedBoxHeight+1, r, nil, whiteStyle)
+			}
+			for i, r := range commandInput {
+				screen.SetContent(thirdBoxWidth+1+i, increasedBoxHeight+1, r, nil, whiteStyle)
 			}
 
-			// Display blinking cursor in the search box if it is highlighted
+			// Display blinking cursor in the search and commands boxes if they are highlighted
 			if currentBox == 2 && cursorVisible {
-				screen.SetContent(1+len(userInput), height-quarterBoxHeight+1, '_', nil, whiteStyle)
+				screen.SetContent(1+len(userInput), increasedBoxHeight+1, '_', nil, whiteStyle)
+			}
+			if currentBox == 3 && cursorVisible {
+				screen.SetContent(thirdBoxWidth+1+len(commandInput), increasedBoxHeight+1, '_', nil, whiteStyle)
 			}
 
 			screen.Show()
@@ -206,7 +221,7 @@ func main() {
 				case tcell.KeyEscape, tcell.KeyCtrlC:
 					return
 				case tcell.KeyTab:
-					currentBox = (currentBox + 1) % 4
+					currentBox = (currentBox + 1) % 5
 				case tcell.KeyUp:
 					if selectedIndices[currentBox] > 0 {
 						selectedIndices[currentBox]--
@@ -219,9 +234,9 @@ func main() {
 					var maxHeight int
 					switch currentBox {
 					case 0, 1:
-						maxHeight = height - quarterBoxHeight
-					case 2, 3:
-						maxHeight = quarterBoxHeight
+						maxHeight = increasedBoxHeight
+					case 2, 3, 4:
+						maxHeight = halfBoxHeight
 					}
 					if selectedIndices[currentBox] < len(boxes[currentBox])-1 {
 						selectedIndices[currentBox]++
@@ -235,6 +250,10 @@ func main() {
 							screen.Fini()
 							changeDirectoryAndRerun("..")
 						}
+					} else if currentBox == 3 { // Commands box
+						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+						screen.Fini()
+						runCommandOnFile(commandStr, selectedFile.Name)
 					} else {
 						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 						if currentBox == 0 { // Directory
@@ -245,12 +264,18 @@ func main() {
 						}
 					}
 				case tcell.KeyBackspace, tcell.KeyBackspace2:
-					if len(userInput) > 0 {
+					if currentBox == 2 && len(userInput) > 0 {
 						userInput = userInput[:len(userInput)-1]
+					} else if currentBox == 3 && len(commandInput) > 0 {
+						commandInput = commandInput[:len(commandInput)-1]
 					}
 				default:
 					if ev.Rune() != 0 {
-						userInput = append(userInput, ev.Rune())
+						if currentBox == 2 {
+							userInput = append(userInput, ev.Rune())
+						} else if currentBox == 3 {
+							commandInput = append(commandInput, ev.Rune())
+						}
 					}
 				}
 			case *tcell.EventResize:
