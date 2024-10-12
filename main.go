@@ -20,6 +20,8 @@ type FileInfo struct {
 	IsExecutable bool
 }
 
+const itemsPerPage = 20 // Number of items to display per page
+
 func main() {
 	// Initialize tcell screen
 	screen, err := tcell.NewScreen()
@@ -34,63 +36,6 @@ func main() {
 	}
 	defer screen.Fini()
 
-	// Read current directory contents
-	files, err := os.ReadDir(".")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading directory: %v\n", err)
-		os.Exit(1)
-	}
-
-	var directories, regularFiles, hiddenFiles []FileInfo
-
-	for _, file := range files {
-		info, err := file.Info()
-		if err != nil {
-			continue
-		}
-
-		// Get file permissions and owner
-		var permissions, owner string
-		var isExecutable bool
-
-		if runtime.GOOS != "windows" {
-			stat := info.Sys().(*syscall.Stat_t)
-			uid := stat.Uid
-			gid := stat.Gid
-			usr, _ := user.LookupId(fmt.Sprint(uid))
-			grp, _ := user.LookupGroupId(fmt.Sprint(gid))
-			permissions = info.Mode().String()
-			owner = fmt.Sprintf("%s:%s", usr.Username, grp.Name)
-			isExecutable = info.Mode()&0111 != 0
-		} else {
-			permissions = "N/A"
-			owner = "N/A"
-			isExecutable = false
-		}
-
-		fileInfo := FileInfo{
-			Name:         info.Name(),
-			Permissions:  permissions,
-			Owner:        owner,
-			IsExecutable: isExecutable,
-		}
-
-		if info.IsDir() {
-			directories = append(directories, fileInfo)
-		} else {
-			if strings.HasPrefix(info.Name(), ".") {
-				hiddenFiles = append(hiddenFiles, fileInfo)
-			} else {
-				regularFiles = append(regularFiles, fileInfo)
-			}
-		}
-	}
-
-	// Variables to track the current box and scroll positions
-	currentBox := 2 // Start with the search box highlighted
-	scrollPositions := []int{0, 0, 0, 0}
-	selectedIndices := []int{0, 0, 0, 0}
-
 	// Buffer for user input in the search box
 	var userInput []rune
 
@@ -99,8 +44,15 @@ func main() {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	// Add a variable to track the best search result match
-	var bestMatch *FileInfo
+	// Variables to track the current box and scroll positions
+	currentBox := 2 // Start with the search box highlighted
+	scrollPositions := []int{0, 0, 0, 0}
+	selectedIndices := []int{0, 0, 0, 0}
+	currentPages := []int{0, 0, 0, 0} // Track the current page for each box
+
+	// Read initial directory contents and update the best match
+	query := string(userInput)
+	directories, regularFiles, hiddenFiles, bestMatch := readDirectoryAndUpdateBestMatch(screen, query)
 
 	// Modify the main loop to update the best match based on user input
 	for {
@@ -171,19 +123,24 @@ func main() {
 			// Display file information in the boxes
 			boxes := [][]FileInfo{filteredDirectories, filteredFiles, nil, filteredHiddenFiles}
 			for i, box := range boxes {
-				var x, y, maxHeight int
+				var x, y int
 				switch i {
 				case 0:
-					x, y, maxHeight = 0, 0, increasedBoxHeight
+					x, y = 0, 0
 				case 1:
-					x, y, maxHeight = boxWidth, 0, increasedBoxHeight
+					x, y = boxWidth, 0
 				case 2:
-					x, y, maxHeight = 0, increasedBoxHeight, halfBoxHeight
+					x, y = 0, increasedBoxHeight
 				case 3:
-					x, y, maxHeight = boxWidth, increasedBoxHeight, halfBoxHeight
+					x, y = boxWidth, increasedBoxHeight
 				}
 				if box != nil {
-					for j := scrollPositions[i]; j < len(box) && j < scrollPositions[i]+maxHeight-1; j++ {
+					startIndex := currentPages[i] * itemsPerPage
+					endIndex := startIndex + itemsPerPage
+					if endIndex > len(box) {
+						endIndex = len(box)
+					}
+					for j := startIndex; j < endIndex; j++ {
 						file := box[j]
 						style := whiteStyle
 						if j == selectedIndices[i] && currentBox == i {
@@ -194,19 +151,19 @@ func main() {
 							style = commandStyle
 						}
 						// Display file information with custom colors
-						displayFileInfo(screen, x+5, y+j-scrollPositions[i]+1, boxWidth-1, file, style, permissionsTitleStyle, permissionsValueStyle, ownerTitleStyle, ownerValueStyle, executableTitleStyle, executableValueStyle)
+						displayFileInfo(screen, x+5, y+j-startIndex+1, boxWidth-1, file, style, permissionsTitleStyle, permissionsValueStyle, ownerTitleStyle, ownerValueStyle, executableTitleStyle, executableValueStyle)
 					}
 				}
 			}
 
 			// Define the ASCII art
 			asciiArt := `
-		 ___               _____  ______
-			| |        /\    |  __ \ | ____|
-			| |       /  \   | |  | || |__
-			| |      / /\ \  | |  | || |__|
-			| |___  / ____ \ | |__| || |
-			|_____|/_/    \_\|_____/ |_|`
+         ___               _____  ______
+            | |        /\    |  __ \ | ____|
+            | |       /  \   | |  | || |__
+            | |      / /\ \  | |  | || |__|
+            | |___  / ____ \ | |__| || |
+            |_____|/_/    \_\|_____/ |_|`
 
 			// Calculate the starting position for the ASCII art
 			asciiArtLines := strings.Split(asciiArt, "\n")
@@ -353,6 +310,69 @@ func findBestMatch(directories, files, hiddenFiles []FileInfo, query string) *Fi
 		}
 	}
 	return bestMatch
+}
+
+func readDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]FileInfo, []FileInfo, []FileInfo, *FileInfo) {
+	files, err := os.ReadDir(".")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	var directories, regularFiles, hiddenFiles []FileInfo
+
+	for _, file := range files {
+		info, err := file.Info()
+		if err != nil {
+			continue
+		}
+
+		// Get file permissions and owner
+		var permissions, owner string
+		var isExecutable bool
+
+		if runtime.GOOS != "windows" {
+			stat := info.Sys().(*syscall.Stat_t)
+			uid := stat.Uid
+			gid := stat.Gid
+			usr, _ := user.LookupId(fmt.Sprint(uid))
+			grp, _ := user.LookupGroupId(fmt.Sprint(gid))
+			permissions = info.Mode().String()
+			owner = fmt.Sprintf("%s:%s", usr.Username, grp.Name)
+			isExecutable = info.Mode()&0111 != 0
+		} else {
+			permissions = "N/A"
+			owner = "N/A"
+			isExecutable = false
+		}
+
+		fileInfo := FileInfo{
+			Name:         info.Name(),
+			Permissions:  permissions,
+			Owner:        owner,
+			IsExecutable: isExecutable,
+		}
+
+		if info.IsDir() {
+			directories = append(directories, fileInfo)
+		} else {
+			if strings.HasPrefix(info.Name(), ".") {
+				hiddenFiles = append(hiddenFiles, fileInfo)
+			} else {
+				regularFiles = append(regularFiles, fileInfo)
+			}
+		}
+	}
+
+	// Filter file lists based on user input
+	filteredDirectories := filterFiles(directories, query)
+	filteredFiles := filterFiles(regularFiles, query)
+	filteredHiddenFiles := filterFiles(hiddenFiles, query)
+
+	// Find the best match
+	bestMatch := findBestMatch(filteredDirectories, filteredFiles, filteredHiddenFiles, query)
+
+	return filteredDirectories, filteredFiles, filteredHiddenFiles, bestMatch
 }
 
 func drawBorder(screen tcell.Screen, x1, y1, x2, y2 int, style tcell.Style) {
