@@ -466,9 +466,9 @@ func showCommandPopup(screen tcell.Screen, fileName string) {
 func changeDirectoryAndRerun(directory string) {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd.exe", "/C", fmt.Sprintf("cd %s && lafd", directory))
+		cmd = exec.Command("cmd.exe", "/C", fmt.Sprintf("cd %s && lds", directory))
 	} else {
-		cmd = exec.Command("sh", "-c", fmt.Sprintf("cd %s && lafd", directory))
+		cmd = exec.Command("sh", "-c", fmt.Sprintf("cd %s && lds", directory))
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
