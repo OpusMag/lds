@@ -85,6 +85,7 @@ func main() {
 			selinuxStyle := tcell.StyleDefault.Foreground(tcell.ColorDarkMagenta)
 			gitStyle := tcell.StyleDefault.Foreground(tcell.ColorLightGreen)
 			dateStyle := tcell.StyleDefault.Foreground(tcell.ColorLightBlue)
+			focusedStyle := tcell.StyleDefault.Foreground(tcell.ColorPaleTurquoise).Bold(true)
 
 			// Calculate box dimensions
 			boxWidth := width / 2
@@ -198,6 +199,22 @@ func main() {
 			// Display blinking cursor in the search box if it is highlighted
 			if currentBox == 2 && cursorVisible {
 				screen.SetContent(1+len(userInput), increasedBoxHeight+1, '_', nil, blinkingStyle)
+			}
+
+			// Highlight the selected box
+			switch currentBox {
+			case 0:
+				screen.SetContent(1, 1, '>', nil, focusedStyle)
+				drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, focusedStyle)
+			case 1:
+				screen.SetContent(1, increasedBoxHeight+1, '>', nil, focusedStyle)
+				drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, focusedStyle)
+			case 2:
+				screen.SetContent(1, increasedBoxHeight+halfBoxHeight+1, '>', nil, focusedStyle)
+				drawBorder(screen, 0, increasedBoxHeight, boxWidth-1, increasedBoxHeight+halfBoxHeight-1, focusedStyle)
+			case 3:
+				screen.SetContent(1, increasedBoxHeight+halfBoxHeight*2+1, '>', nil, focusedStyle)
+				drawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, focusedStyle)
 			}
 
 			screen.Show()
