@@ -234,7 +234,17 @@ func main() {
 						}
 					}
 				case tcell.KeyEnter:
-					if currentBox == 2 && bestMatch != nil { // Search box
+					if currentBox == 2 && string(userInput) == ".." { // Check for .. command
+						err := os.Chdir("..")
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Error changing directory: %v\n", err)
+						} else {
+							// Clear user input
+							userInput = []rune{}
+							// Rerun the directory reading and updating logic
+							directories, regularFiles, hiddenFiles, bestMatch = readDirectoryAndUpdateBestMatch(screen, "")
+						}
+					} else if currentBox == 2 && bestMatch != nil { // Search box
 						showCommandPopup(screen, bestMatch.Name)
 					} else {
 						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
@@ -256,6 +266,7 @@ func main() {
 						}
 					}
 				}
+
 			case *tcell.EventMouse:
 				x, y := ev.Position()
 				if ev.Buttons() == tcell.Button1 {
