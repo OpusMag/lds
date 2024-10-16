@@ -266,44 +266,6 @@ func main() {
 						}
 					}
 				}
-
-			case *tcell.EventMouse:
-				x, y := ev.Position()
-				if ev.Buttons() == tcell.Button1 {
-					// Determine which box was clicked
-					if y < increasedBoxHeight {
-						if x < boxWidth {
-							currentBox = 0 // Directories
-						} else {
-							currentBox = 1 // Files
-						}
-					} else if y < increasedBoxHeight+halfBoxHeight {
-						if x < boxWidth {
-							currentBox = 2 // Search
-						} else {
-							currentBox = 3 // Dot Files
-						}
-					}
-
-					// Determine which file or directory was clicked
-					if currentBox != 2 { // Not the search box
-						var boxStartY int
-						switch currentBox {
-						case 0:
-							boxStartY = 0
-						case 1:
-							boxStartY = 0
-						case 2:
-							boxStartY = increasedBoxHeight
-						case 3:
-							boxStartY = increasedBoxHeight
-						}
-						clickedIndex := y - boxStartY - 1 + scrollPositions[currentBox]
-						if clickedIndex >= 0 && clickedIndex < len(boxes[currentBox]) {
-							selectedIndices[currentBox] = clickedIndex
-						}
-					}
-				}
 			case *tcell.EventResize:
 				screen.Sync()
 			}
