@@ -74,17 +74,8 @@ func main() {
 			highlightStyle := tcell.StyleDefault.Foreground(tcell.ColorLightSkyBlue).Bold(true)
 			commandStyle := tcell.StyleDefault.Foreground(tcell.ColorPurple)
 			blinkingStyle := tcell.StyleDefault.Foreground(tcell.ColorLimeGreen).Bold(true)
-			permissionsTitleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
-			permissionsValueStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen)
-			ownerTitleStyle := tcell.StyleDefault.Foreground(tcell.ColorFuchsia)
-			ownerValueStyle := tcell.StyleDefault.Foreground(tcell.ColorTeal)
-			executableTitleStyle := tcell.StyleDefault.Foreground(tcell.ColorRed)
-			executableValueStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue)
-			symlinkStyle := tcell.StyleDefault.Foreground(tcell.ColorLightYellow)
-			mountPointStyle := tcell.StyleDefault.Foreground(tcell.ColorLightCyan)
-			selinuxStyle := tcell.StyleDefault.Foreground(tcell.ColorDarkMagenta)
-			gitStyle := tcell.StyleDefault.Foreground(tcell.ColorLightGreen)
-			dateStyle := tcell.StyleDefault.Foreground(tcell.ColorLightBlue)
+			labelStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+			valueStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen)
 			focusedStyle := tcell.StyleDefault.Foreground(tcell.ColorPaleTurquoise).Bold(true)
 
 			// Calculate box dimensions
@@ -97,10 +88,10 @@ func main() {
 			drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, tealStyle)                                    // Directories
 			drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, tealStyle)                                // Files
 			drawBorder(screen, 0, increasedBoxHeight, boxWidth-1, increasedBoxHeight+halfBoxHeight-1, tealStyle)     // Search
-			drawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, tealStyle) // Dot Files
+			drawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, tealStyle) // File Info
 
 			// Display titles for the boxes
-			titles := []string{"Directories", "Files", "Search", "Dot Files"}
+			titles := []string{"Directories", "Files", "Search", "File Info"}
 			for i, title := range titles {
 				var x, y int
 				switch i {
@@ -123,14 +114,13 @@ func main() {
 
 			// Filter file lists based on user input
 			filteredDirectories := filterFiles(directories, inputStr)
-			filteredFiles := filterFiles(regularFiles, inputStr)
-			filteredHiddenFiles := filterFiles(hiddenFiles, inputStr)
+			filteredFiles := filterFiles(append(regularFiles, hiddenFiles...), inputStr)
 
 			// Find the best match
-			bestMatch = findBestMatch(filteredDirectories, filteredFiles, filteredHiddenFiles, inputStr)
+			bestMatch = findBestMatch(filteredDirectories, filteredFiles, nil, inputStr)
 
-			// Display file information in the boxes
-			boxes := [][]FileInfo{filteredDirectories, filteredFiles, nil, filteredHiddenFiles}
+			// Display file names in the directories and files boxes
+			boxes := [][]FileInfo{filteredDirectories, filteredFiles, nil}
 			for i, box := range boxes {
 				var x, y, boxHeight int
 				switch i {
@@ -140,8 +130,6 @@ func main() {
 					x, y, boxHeight = boxWidth, 0, increasedBoxHeight
 				case 2:
 					x, y, boxHeight = 0, increasedBoxHeight, halfBoxHeight
-				case 3:
-					x, y, boxHeight = boxWidth, increasedBoxHeight, halfBoxHeight
 				}
 				if box != nil {
 					for j := scrollPositions[i]; j < len(box) && j < scrollPositions[i]+boxHeight-3; j++ {
@@ -153,9 +141,21 @@ func main() {
 						if currentBox == 2 && bestMatch != nil && file.Name == bestMatch.Name {
 							style = commandStyle
 						}
-						displayFileInfo(screen, x+3, y+j-scrollPositions[i]+1, x+boxWidth-1, file, style, permissionsTitleStyle, permissionsValueStyle, ownerTitleStyle, ownerValueStyle, executableTitleStyle, executableValueStyle, symlinkStyle, mountPointStyle, selinuxStyle, gitStyle, dateStyle)
+						for k, r := range file.Name {
+							if x+3+k < width {
+								screen.SetContent(x+3+k, y+j-scrollPositions[i]+1, r, nil, style)
+							}
+						}
 					}
 				}
+			}
+
+			// Display detailed file information in the file info box
+			if currentBox == 0 || currentBox == 1 {
+				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+				displayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, selectedFile, labelStyle, valueStyle)
+			} else if currentBox == 2 && bestMatch != nil {
+				displayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, *bestMatch, labelStyle, valueStyle)
 			}
 
 			// Define the ASCII art
@@ -227,7 +227,7 @@ func main() {
 				case tcell.KeyEscape, tcell.KeyCtrlC:
 					return
 				case tcell.KeyTab:
-					currentBox = (currentBox + 1) % 4
+					currentBox = (currentBox + 1) % len(titles) // Ensure currentBox wraps correctly
 				case tcell.KeyUp:
 					if selectedIndices[currentBox] > 0 {
 						selectedIndices[currentBox]--
@@ -258,6 +258,9 @@ func main() {
 						} else {
 							// Clear user input
 							userInput = []rune{}
+							// Reset scroll positions and selected indices
+							scrollPositions = []int{0, 0, 0, 0}
+							selectedIndices = []int{0, 0, 0, 0}
 							// Rerun the directory reading and updating logic
 							directories, regularFiles, hiddenFiles, bestMatch = readDirectoryAndUpdateBestMatch(screen, "")
 						}
@@ -280,6 +283,43 @@ func main() {
 					if ev.Rune() != 0 {
 						if currentBox == 2 {
 							userInput = append(userInput, ev.Rune())
+						}
+					}
+				}
+			case *tcell.EventMouse:
+				x, y := ev.Position()
+				if ev.Buttons() == tcell.Button1 {
+					// Determine which box was clicked
+					if y < increasedBoxHeight {
+						if x < boxWidth {
+							currentBox = 0 // Directories
+						} else {
+							currentBox = 1 // Files
+						}
+					} else if y < increasedBoxHeight+halfBoxHeight {
+						if x < boxWidth {
+							currentBox = 2 // Search
+						} else {
+							currentBox = 3 // File Info
+						}
+					}
+
+					// Determine which file or directory was clicked
+					if currentBox != 2 { // Not the search box
+						var boxStartY int
+						switch currentBox {
+						case 0:
+							boxStartY = 0
+						case 1:
+							boxStartY = 0
+						case 2:
+							boxStartY = increasedBoxHeight
+						case 3:
+							boxStartY = increasedBoxHeight
+						}
+						clickedIndex := y - boxStartY - 1 + scrollPositions[currentBox]
+						if clickedIndex >= 0 && clickedIndex < len(boxes[currentBox]) {
+							selectedIndices[currentBox] = clickedIndex
 						}
 					}
 				}
@@ -374,7 +414,7 @@ func readDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]FileI
 		os.Exit(1)
 	}
 
-	var directories, regularFiles, hiddenFiles []FileInfo
+	var directories, regularFiles []FileInfo
 
 	for _, file := range files {
 		info, err := file.Info()
@@ -429,23 +469,18 @@ func readDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]FileI
 		if info.IsDir() {
 			directories = append(directories, fileInfo)
 		} else {
-			if strings.HasPrefix(info.Name(), ".") {
-				hiddenFiles = append(hiddenFiles, fileInfo)
-			} else {
-				regularFiles = append(regularFiles, fileInfo)
-			}
+			regularFiles = append(regularFiles, fileInfo)
 		}
 	}
 
 	// Filter file lists based on user input
 	filteredDirectories := filterFiles(directories, query)
 	filteredFiles := filterFiles(regularFiles, query)
-	filteredHiddenFiles := filterFiles(hiddenFiles, query)
 
 	// Find the best match
-	bestMatch := findBestMatch(filteredDirectories, filteredFiles, filteredHiddenFiles, query)
+	bestMatch := findBestMatch(filteredDirectories, filteredFiles, nil, query)
 
-	return filteredDirectories, filteredFiles, filteredHiddenFiles, bestMatch
+	return filteredDirectories, filteredFiles, nil, bestMatch
 }
 
 func drawBorder(screen tcell.Screen, x1, y1, x2, y2 int, style tcell.Style) {
@@ -575,106 +610,33 @@ func filterFiles(files []FileInfo, query string) []FileInfo {
 	return filtered
 }
 
-func displayFileInfo(screen tcell.Screen, x, y, maxWidth int, file FileInfo, defaultStyle, permissionsTitleStyle, permissionsValueStyle, ownerTitleStyle, ownerValueStyle, executableTitleStyle, executableValueStyle, symlinkStyle, mountPointStyle, selinuxStyle, gitStyle, dateStyle tcell.Style) {
-	// Display file name
-	for i, r := range file.Name {
-		if x+i < maxWidth {
-			screen.SetContent(x+i, y, r, nil, defaultStyle)
-		}
+func displayFileInfo(screen tcell.Screen, x, y, maxWidth int, file FileInfo, labelStyle, valueStyle tcell.Style) {
+	// Define labels and values
+	labels := []string{
+		"Name: ", "Permissions: ", "Owner: ", "Executable: ", "Symlink: ", "Mount: ", "SELinux: ", "Git: ", "Date: ",
+	}
+	values := []string{
+		file.Name, file.Permissions, file.Owner, strings.ToUpper(fmt.Sprint(file.IsExecutable)),
+		fmt.Sprintf("-> %s", file.SymlinkTarget), file.MountPoint, file.SELinuxContext, file.GitRepoStatus, file.HumanReadableDate,
 	}
 
-	// Calculate new positions
-	permissionsTitleX := int(float64(x+20) * 1.2)
-	permissionsValueX := int(float64(x+32) * 1.2)
-	ownerTitleX := int(float64(x+52) * 1.2)
-	ownerValueX := int(float64(x+60) * 1.2)
-	executableTitleX := int(float64(x+80) * 1.2)
-	executableValueX := int(float64(x+92) * 1.2)
-	symlinkX := int(float64(x+104) * 1.2)
-	mountPointX := int(float64(x+116) * 1.2)
-	selinuxX := int(float64(x+128) * 1.2)
-	gitX := int(float64(x+140) * 1.2)
-	dateX := int(float64(x+152) * 1.2)
+	// Display labels and values
+	for i, label := range labels {
+		labelX := x
+		valueX := x + len(label) + 1
 
-	// Display permissions
-	permissionsTitle := "Permissions: "
-	for i, r := range permissionsTitle {
-		if permissionsTitleX+i < maxWidth {
-			screen.SetContent(permissionsTitleX+i, y, r, nil, permissionsTitleStyle)
-		}
-	}
-	for i, r := range file.Permissions {
-		if permissionsValueX+i < maxWidth {
-			screen.SetContent(permissionsValueX+i, y, r, nil, permissionsValueStyle)
-		}
-	}
-
-	// Display owner
-	ownerTitle := "Owner: "
-	for i, r := range ownerTitle {
-		if ownerTitleX+i < maxWidth {
-			screen.SetContent(ownerTitleX+i, y, r, nil, ownerTitleStyle)
-		}
-	}
-	for i, r := range file.Owner {
-		if ownerValueX+i < maxWidth {
-			screen.SetContent(ownerValueX+i, y, r, nil, ownerValueStyle)
-		}
-	}
-
-	// Display executable status
-	executableTitle := "Executable: "
-	for i, r := range executableTitle {
-		if executableTitleX+i < maxWidth {
-			screen.SetContent(executableTitleX+i, y, r, nil, executableTitleStyle)
-		}
-	}
-	executableStatus := strings.ToUpper(fmt.Sprint(file.IsExecutable))
-	for i, r := range executableStatus {
-		if executableValueX+i < maxWidth {
-			screen.SetContent(executableValueX+i, y, r, nil, executableValueStyle)
-		}
-	}
-
-	// Display symlink status
-	if file.IsSymlink {
-		symlinkInfo := fmt.Sprintf("Symlink -> %s", file.SymlinkTarget)
-		for i, r := range symlinkInfo {
-			if symlinkX+i < maxWidth {
-				screen.SetContent(symlinkX+i, y, r, nil, symlinkStyle)
+		// Display label
+		for j, r := range label {
+			if labelX+j < maxWidth {
+				screen.SetContent(labelX+j, y+i, r, nil, labelStyle)
 			}
 		}
-	}
 
-	// Display mount point details
-	mountPointInfo := fmt.Sprintf("Mount: %s", file.MountPoint)
-	for i, r := range mountPointInfo {
-		if mountPointX+i < maxWidth {
-			screen.SetContent(mountPointX+i, y, r, nil, mountPointStyle)
-		}
-	}
-
-	// Display SELinux context
-	selinuxInfo := fmt.Sprintf("SELinux: %s", file.SELinuxContext)
-	for i, r := range selinuxInfo {
-		if selinuxX+i < maxWidth {
-			screen.SetContent(selinuxX+i, y, r, nil, selinuxStyle)
-		}
-	}
-
-	// Display Git repo status
-	gitInfo := fmt.Sprintf("Git: %s", file.GitRepoStatus)
-	for i, r := range gitInfo {
-		if gitX+i < maxWidth {
-			screen.SetContent(gitX+i, y, r, nil, gitStyle)
-		}
-	}
-
-	// Display human-readable relative dates
-	dateInfo := fmt.Sprintf("Date: %s", file.HumanReadableDate)
-	for i, r := range dateInfo {
-		if dateX+i < maxWidth {
-			screen.SetContent(dateX+i, y, r, nil, dateStyle)
+		// Display value
+		for j, r := range values[i] {
+			if valueX+j < maxWidth {
+				screen.SetContent(valueX+j, y+i, r, nil, valueStyle)
+			}
 		}
 	}
 }
