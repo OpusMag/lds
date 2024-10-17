@@ -74,8 +74,8 @@ func main() {
 			highlightStyle := tcell.StyleDefault.Foreground(tcell.ColorLightSkyBlue).Bold(true)
 			commandStyle := tcell.StyleDefault.Foreground(tcell.ColorPurple)
 			blinkingStyle := tcell.StyleDefault.Foreground(tcell.ColorLimeGreen).Bold(true)
-			labelStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
-			valueStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen)
+			labelStyle := tcell.StyleDefault.Foreground(tcell.ColorDarkSeaGreen)
+			valueStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue)
 			focusedStyle := tcell.StyleDefault.Foreground(tcell.ColorPaleTurquoise).Bold(true)
 
 			// Calculate box dimensions
