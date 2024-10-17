@@ -151,7 +151,7 @@ func main() {
 			}
 
 			// Display detailed file information in the file info box
-			if currentBox == 0 || currentBox == 1 {
+			if (currentBox == 0 || currentBox == 1) && len(boxes[currentBox]) > 0 {
 				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 				displayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, selectedFile, labelStyle, valueStyle)
 			} else if currentBox == 2 && bestMatch != nil {
@@ -266,7 +266,7 @@ func main() {
 						}
 					} else if currentBox == 2 && bestMatch != nil { // Search box
 						showCommandPopup(screen, bestMatch.Name)
-					} else {
+					} else if len(boxes[currentBox]) > 0 {
 						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 						if currentBox == 0 { // Directory
 							screen.Fini()
