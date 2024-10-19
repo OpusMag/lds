@@ -14,16 +14,22 @@ import (
 )
 
 type FileInfo struct {
-	Name              string
-	Permissions       string
-	Owner             string
-	IsExecutable      bool
-	IsSymlink         bool
-	SymlinkTarget     string
-	MountPoint        string
-	SELinuxContext    string
-	GitRepoStatus     string
-	HumanReadableDate string
+	Name            string
+	Permissions     string
+	Owner           string
+	IsExecutable    bool
+	IsSymlink       bool
+	SymlinkTarget   string
+	MountPoint      string
+	SELinuxContext  string
+	GitRepoStatus   string
+	getLastModified string
+	Size            int64
+	FileType        string
+	LastAccessTime  string
+	CreationTime    string
+	Inode           uint64
+	HardLinksCount  uint64
 }
 
 func main() {
@@ -72,10 +78,10 @@ func main() {
 			whiteStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 			tealStyle := tcell.StyleDefault.Foreground(tcell.ColorTeal)
 			highlightStyle := tcell.StyleDefault.Foreground(tcell.ColorLightSkyBlue).Bold(true)
-			commandStyle := tcell.StyleDefault.Foreground(tcell.ColorPurple)
+			commandStyle := tcell.StyleDefault.Foreground(tcell.ColorForestGreen).Bold(true)
 			blinkingStyle := tcell.StyleDefault.Foreground(tcell.ColorLimeGreen).Bold(true)
-			labelStyle := tcell.StyleDefault.Foreground(tcell.ColorDarkSeaGreen)
-			valueStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue)
+			labelStyle := tcell.StyleDefault.Foreground(tcell.ColorSlateGray)
+			valueStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Bold(true)
 			focusedStyle := tcell.StyleDefault.Foreground(tcell.ColorPaleTurquoise).Bold(true)
 
 			// Calculate box dimensions
@@ -307,8 +313,10 @@ func getSymlinkStatus(file os.DirEntry) (bool, string) {
 
 // Get the mount point of the file
 func getMountPoint(info os.FileInfo) string {
-	// Implement logic to get mount point details
-	// This example assumes a Unix-like system and uses the "findmnt" command
+	if runtime.GOOS == "windows" {
+		return "N/A" // Mount points are not applicable on Windows in the same way
+	}
+	// Implement logic to get mount point details for Unix-like systems
 	cmd := exec.Command("findmnt", "-n", "-o", "TARGET", "--target", info.Name())
 	output, err := cmd.Output()
 	if err != nil {
@@ -319,17 +327,18 @@ func getMountPoint(info os.FileInfo) string {
 
 // Get the SELinux context of the file
 func getSELinuxContext(info os.FileInfo) string {
-	// Implement logic to get SELinux context
-	if runtime.GOOS == "linux" {
-		cmd := exec.Command("ls", "-Z", info.Name())
-		output, err := cmd.Output()
-		if err != nil {
-			return "N/A"
-		}
-		parts := strings.Fields(string(output))
-		if len(parts) > 3 {
-			return parts[3] // SELinux context is usually the 4th field
-		}
+	if runtime.GOOS != "linux" {
+		return "N/A" // SELinux is specific to Linux
+	}
+	// Implement logic to get SELinux context for Linux
+	cmd := exec.Command("ls", "-Z", info.Name())
+	output, err := cmd.Output()
+	if err != nil {
+		return "N/A"
+	}
+	parts := strings.Fields(string(output))
+	if len(parts) > 3 {
+		return parts[3] // SELinux context is usually the 4th field
 	}
 	return "N/A"
 }
@@ -349,7 +358,7 @@ func getGitRepoStatus(file os.DirEntry) string {
 }
 
 // How long since the file was last modified
-func getHumanReadableDate(modTime time.Time) string {
+func getLastModified(modTime time.Time) string {
 	duration := time.Since(modTime)
 	if duration.Hours() < 24 {
 		return fmt.Sprintf("%d hours ago", int(duration.Hours()))
@@ -375,6 +384,25 @@ func findBestMatch(directories, files, hiddenFiles []FileInfo, query string) *Fi
 	return bestMatch
 }
 
+func getFileType(info os.FileInfo) string {
+	switch mode := info.Mode(); {
+	case mode.IsRegular():
+		return "Regular File"
+	case mode.IsDir():
+		return "Directory"
+	case mode&os.ModeSymlink != 0:
+		return "Symlink"
+	case mode&os.ModeNamedPipe != 0:
+		return "Named Pipe"
+	case mode&os.ModeSocket != 0:
+		return "Socket"
+	case mode&os.ModeDevice != 0:
+		return "Device"
+	default:
+		return "Unknown"
+	}
+}
+
 func readDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]FileInfo, []FileInfo, []FileInfo, *FileInfo) {
 	files, err := os.ReadDir(".")
 	if err != nil {
@@ -393,7 +421,10 @@ func readDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]FileI
 		// Get file permissions and owner
 		var permissions, owner string
 		var isExecutable, isSymlink bool
-		var symlinkTarget, mountPoint, selinuxContext, gitRepoStatus, humanReadableDate string
+		var symlinkTarget, mountPoint, selinuxContext, gitRepoStatus, LastModified string
+		var size int64
+		var fileType, lastAccessTime, creationTime string
+		var inode, hardLinksCount uint64
 
 		if runtime.GOOS != "windows" {
 			stat := info.Sys().(*syscall.Stat_t)
@@ -408,7 +439,13 @@ func readDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]FileI
 			mountPoint = getMountPoint(info)
 			selinuxContext = getSELinuxContext(info)
 			gitRepoStatus = getGitRepoStatus(file)
-			humanReadableDate = getHumanReadableDate(info.ModTime())
+			LastModified = getLastModified(info.ModTime())
+			size = info.Size()
+			fileType = getFileType(info)
+			lastAccessTime = getLastModified(time.Unix(stat.Atim.Sec, stat.Atim.Nsec))
+			creationTime = getLastModified(time.Unix(stat.Ctim.Sec, stat.Ctim.Nsec))
+			inode = stat.Ino
+			hardLinksCount = stat.Nlink
 		} else {
 			permissions = "N/A"
 			owner = "N/A"
@@ -418,20 +455,32 @@ func readDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]FileI
 			mountPoint = "N/A"
 			selinuxContext = "N/A"
 			gitRepoStatus = "N/A"
-			humanReadableDate = "N/A"
+			LastModified = getLastModified(info.ModTime())
+			size = info.Size()
+			fileType = getFileType(info)
+			lastAccessTime = "N/A"
+			creationTime = "N/A"
+			inode = 0
+			hardLinksCount = 0
 		}
 
 		fileInfo := FileInfo{
-			Name:              info.Name(),
-			Permissions:       permissions,
-			Owner:             owner,
-			IsExecutable:      isExecutable,
-			IsSymlink:         isSymlink,
-			SymlinkTarget:     symlinkTarget,
-			MountPoint:        mountPoint,
-			SELinuxContext:    selinuxContext,
-			GitRepoStatus:     gitRepoStatus,
-			HumanReadableDate: humanReadableDate,
+			Name:            info.Name(),
+			Permissions:     permissions,
+			Owner:           owner,
+			IsExecutable:    isExecutable,
+			IsSymlink:       isSymlink,
+			SymlinkTarget:   symlinkTarget,
+			MountPoint:      mountPoint,
+			SELinuxContext:  selinuxContext,
+			GitRepoStatus:   gitRepoStatus,
+			getLastModified: LastModified,
+			Size:            size,
+			FileType:        fileType,
+			LastAccessTime:  lastAccessTime,
+			CreationTime:    creationTime,
+			Inode:           inode,
+			HardLinksCount:  hardLinksCount,
 		}
 
 		if info.IsDir() {
@@ -581,7 +630,7 @@ func filterFiles(files []FileInfo, query string) []FileInfo {
 func displayFileInfo(screen tcell.Screen, x, y, maxWidth int, file FileInfo, labelStyle, valueStyle tcell.Style) {
 	// Define labels and values
 	labels := []string{
-		"Name: ", "User permissions: ", "Group permissions: ", "Others permissions: ", "Owner: ", "Executable: ", "Symlink: ", "Mount: ", "SELinux: ", "Git: ", "Date: ",
+		"Name: ", "User permissions: ", "Group permissions: ", "Others permissions: ", "Owner: ", "Executable: ", "Symlink: ", "Symlink Target: ", "Mount: ", "Git: ", "Size: ", "File Type: ", "Last Access: ", "Creation Time: ", "Inode: ", "Hard Links: ",
 	}
 
 	// Ensure the permissions string has the expected length
@@ -610,7 +659,8 @@ func displayFileInfo(screen tcell.Screen, x, y, maxWidth int, file FileInfo, lab
 
 	values := []string{
 		file.Name, userPermissions, groupPermissions, othersPermissions, file.Owner, strings.ToUpper(fmt.Sprint(file.IsExecutable)),
-		fmt.Sprintf("-> %s", file.SymlinkTarget), file.MountPoint, file.SELinuxContext, file.GitRepoStatus, file.HumanReadableDate,
+		fmt.Sprintf("%t", file.IsSymlink), file.SymlinkTarget, file.MountPoint, file.GitRepoStatus,
+		fmt.Sprintf("%d bytes", file.Size), file.FileType, file.LastAccessTime, file.CreationTime, fmt.Sprintf("%d", file.Inode), fmt.Sprintf("%d", file.HardLinksCount),
 	}
 
 	// Display labels and values
