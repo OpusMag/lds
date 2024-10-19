@@ -204,16 +204,16 @@ func main() {
 			// Highlight the selected box
 			switch currentBox {
 			case 0:
-				screen.SetContent(1, 1, '>', nil, focusedStyle)
+				screen.SetContent(1, 1, ' ', nil, focusedStyle)
 				drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, focusedStyle)
 			case 1:
-				screen.SetContent(1, increasedBoxHeight+1, '>', nil, focusedStyle)
+				screen.SetContent(1, increasedBoxHeight+1, ' ', nil, focusedStyle)
 				drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, focusedStyle)
 			case 2:
-				screen.SetContent(1, increasedBoxHeight+halfBoxHeight+1, '>', nil, focusedStyle)
+				screen.SetContent(1, increasedBoxHeight+1, ' ', nil, focusedStyle)
 				drawBorder(screen, 0, increasedBoxHeight, boxWidth-1, increasedBoxHeight+halfBoxHeight-1, focusedStyle)
 			case 3:
-				screen.SetContent(1, increasedBoxHeight+halfBoxHeight*2+1, '>', nil, focusedStyle)
+				screen.SetContent(1, increasedBoxHeight+halfBoxHeight+1, ' ', nil, focusedStyle)
 				drawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, focusedStyle)
 			}
 
@@ -286,43 +286,6 @@ func main() {
 						}
 					}
 				}
-			case *tcell.EventMouse:
-				x, y := ev.Position()
-				if ev.Buttons() == tcell.Button1 {
-					// Determine which box was clicked
-					if y < increasedBoxHeight {
-						if x < boxWidth {
-							currentBox = 0 // Directories
-						} else {
-							currentBox = 1 // Files
-						}
-					} else if y < increasedBoxHeight+halfBoxHeight {
-						if x < boxWidth {
-							currentBox = 2 // Search
-						} else {
-							currentBox = 3 // File Info
-						}
-					}
-
-					// Determine which file or directory was clicked
-					if currentBox != 2 { // Not the search box
-						var boxStartY int
-						switch currentBox {
-						case 0:
-							boxStartY = 0
-						case 1:
-							boxStartY = 0
-						case 2:
-							boxStartY = increasedBoxHeight
-						case 3:
-							boxStartY = increasedBoxHeight
-						}
-						clickedIndex := y - boxStartY - 1 + scrollPositions[currentBox]
-						if clickedIndex >= 0 && clickedIndex < len(boxes[currentBox]) {
-							selectedIndices[currentBox] = clickedIndex
-						}
-					}
-				}
 			case *tcell.EventResize:
 				screen.Sync()
 			}
@@ -330,6 +293,7 @@ func main() {
 	}
 }
 
+// Check if the file is a symlink and get the target
 func getSymlinkStatus(file os.DirEntry) (bool, string) {
 	if file.Type()&os.ModeSymlink != 0 {
 		target, err := os.Readlink(file.Name())
@@ -341,6 +305,7 @@ func getSymlinkStatus(file os.DirEntry) (bool, string) {
 	return false, ""
 }
 
+// Get the mount point of the file
 func getMountPoint(info os.FileInfo) string {
 	// Implement logic to get mount point details
 	// This example assumes a Unix-like system and uses the "findmnt" command
@@ -352,6 +317,7 @@ func getMountPoint(info os.FileInfo) string {
 	return strings.TrimSpace(string(output))
 }
 
+// Get the SELinux context of the file
 func getSELinuxContext(info os.FileInfo) string {
 	// Implement logic to get SELinux context
 	if runtime.GOOS == "linux" {
@@ -368,6 +334,7 @@ func getSELinuxContext(info os.FileInfo) string {
 	return "N/A"
 }
 
+// Check if the file is part of a Git repository and if it is modified
 func getGitRepoStatus(file os.DirEntry) string {
 	// Check if the file is part of a Git repository
 	cmd := exec.Command("git", "status", "--porcelain", file.Name())
@@ -381,6 +348,7 @@ func getGitRepoStatus(file os.DirEntry) string {
 	return "Modified"
 }
 
+// How long since the file was last modified
 func getHumanReadableDate(modTime time.Time) string {
 	duration := time.Since(modTime)
 	if duration.Hours() < 24 {
@@ -613,10 +581,35 @@ func filterFiles(files []FileInfo, query string) []FileInfo {
 func displayFileInfo(screen tcell.Screen, x, y, maxWidth int, file FileInfo, labelStyle, valueStyle tcell.Style) {
 	// Define labels and values
 	labels := []string{
-		"Name: ", "Permissions: ", "Owner: ", "Executable: ", "Symlink: ", "Mount: ", "SELinux: ", "Git: ", "Date: ",
+		"Name: ", "User permissions: ", "Group permissions: ", "Others permissions: ", "Owner: ", "Executable: ", "Symlink: ", "Mount: ", "SELinux: ", "Git: ", "Date: ",
 	}
+
+	// Ensure the permissions string has the expected length
+	if len(file.Permissions) < 10 {
+		file.Permissions = file.Permissions + strings.Repeat("-", 10-len(file.Permissions)) // Pad with dashes if the string is too short
+	}
+
+	// Break down the permissions into user, group, and others with explanations
+	userPermissions := fmt.Sprintf("User permissions: %s (Read: %s, Write: %s, Execute: %s)",
+		file.Permissions[1:4],
+		getPermissionChar(file.Permissions, 1),
+		getPermissionChar(file.Permissions, 2),
+		getPermissionChar(file.Permissions, 3))
+
+	groupPermissions := fmt.Sprintf("Group permissions: %s (Read: %s, Write: %s, Execute: %s)",
+		file.Permissions[4:7],
+		getPermissionChar(file.Permissions, 4),
+		getPermissionChar(file.Permissions, 5),
+		getPermissionChar(file.Permissions, 6))
+
+	othersPermissions := fmt.Sprintf("Others permissions: %s (Read: %s, Write: %s, Execute: %s)",
+		file.Permissions[7:10],
+		getPermissionChar(file.Permissions, 7),
+		getPermissionChar(file.Permissions, 8),
+		getPermissionChar(file.Permissions, 9))
+
 	values := []string{
-		file.Name, file.Permissions, file.Owner, strings.ToUpper(fmt.Sprint(file.IsExecutable)),
+		file.Name, userPermissions, groupPermissions, othersPermissions, file.Owner, strings.ToUpper(fmt.Sprint(file.IsExecutable)),
 		fmt.Sprintf("-> %s", file.SymlinkTarget), file.MountPoint, file.SELinuxContext, file.GitRepoStatus, file.HumanReadableDate,
 	}
 
@@ -633,10 +626,29 @@ func displayFileInfo(screen tcell.Screen, x, y, maxWidth int, file FileInfo, lab
 		}
 
 		// Display value
-		for j, r := range values[i] {
-			if valueX+j < maxWidth {
-				screen.SetContent(valueX+j, y+i, r, nil, valueStyle)
+		if i >= 1 && i <= 3 { // Special handling for permissions to display each part on a new line
+			permissionsLines := strings.Split(values[i], "\n")
+			for k, line := range permissionsLines {
+				for j, r := range line {
+					if valueX+j < maxWidth {
+						screen.SetContent(valueX+j, y+i+k, r, nil, valueStyle)
+					}
+				}
+			}
+		} else {
+			for j, r := range values[i] {
+				if valueX+j < maxWidth {
+					screen.SetContent(valueX+j, y+i, r, nil, valueStyle)
+				}
 			}
 		}
 	}
+}
+
+// Get the permission character or a dash if out of range
+func getPermissionChar(permissions string, index int) string {
+	if index < len(permissions) {
+		return string(permissions[index])
+	}
+	return "-"
 }
