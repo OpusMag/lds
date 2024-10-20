@@ -1,6 +1,7 @@
 # lds
 An alternative to the ls command that makes it easier to get your bearings in a complicated directory with lots of files
 
+![lds](https://github.com/user-attachments/assets/f38c2770-5e40-4886-b6b0-4e444f298942)
 
 
 To use this tool:
