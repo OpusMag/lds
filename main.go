@@ -210,16 +210,16 @@ func main() {
 			// Highlight the selected box
 			switch currentBox {
 			case 0:
-				screen.SetContent(1, 1, ' ', nil, focusedStyle)
+				//screen.SetContent(1, 1, ' ', nil, focusedStyle)
 				drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, focusedStyle)
 			case 1:
-				screen.SetContent(1, increasedBoxHeight+1, ' ', nil, focusedStyle)
+				//screen.SetContent(1, increasedBoxHeight+1, ' ', nil, focusedStyle)
 				drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, focusedStyle)
 			case 2:
-				screen.SetContent(1, increasedBoxHeight+1, ' ', nil, focusedStyle)
+				//screen.SetContent(1, increasedBoxHeight+1, ' ', nil, focusedStyle)
 				drawBorder(screen, 0, increasedBoxHeight, boxWidth-1, increasedBoxHeight+halfBoxHeight-1, focusedStyle)
 			case 3:
-				screen.SetContent(1, increasedBoxHeight+halfBoxHeight+1, ' ', nil, focusedStyle)
+				//screen.SetContent(1, increasedBoxHeight+halfBoxHeight+1, ' ', nil, focusedStyle)
 				drawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, focusedStyle)
 			}
 
