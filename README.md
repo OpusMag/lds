@@ -15,7 +15,7 @@ Linux: Depending on your package manager:
         sudo dnf install git-all
         sudo apt install git-all
 
-    Git:
+    Go:
         sudo pacman -S go
         sudo dnf install go
         sudo apt install go
@@ -25,7 +25,7 @@ Windows:
     Git:
         go to https://git-scm.com/download/win and the download should start automatically. Then install it.
 
-    Git:
+    Go:
         go to https://golang.org/dl/ and download the latest version of go.
         Follow this guide to install properly: https://www.geeksforgeeks.org/how-to-install-go-on-windows/
 
