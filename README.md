@@ -55,7 +55,7 @@ Linux and macOS instructions for installing lds:
 Option A:
 
     Go to the latest release at https://github.com/OpusMag/lds and download the binary.
-    Eun chmod +x ~/Downloads/lds (or whatever dir you downloaded it to)
+    Run chmod +x ~/Downloads/lds (or whatever dir you downloaded it to)
     Move it to /usr/local/bin/ by running sudo mv lds /usr/local/bin/
 
 Option B:
