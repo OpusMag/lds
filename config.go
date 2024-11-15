@@ -45,14 +45,7 @@ type Config struct {
 		Size  int    `json:"size"`
 		Style string `json:"style"`
 	} `json:"font"`
-	Layout struct {
-		DirectoryBoxWidth int `json:"directoryBoxWidth"`
-		FileBoxWidth      int `json:"fileBoxWidth"`
-		SearchBoxHeight   int `json:"searchBoxHeight"`
-		FileInfoBoxHeight int `json:"fileInfoBoxHeight"`
-	} `json:"layout"`
-	DefaultDirectory string `json:"defaultDirectory"`
-	FileFilters      struct {
+	FileFilters struct {
 		ShowHiddenFiles bool     `json:"showHiddenFiles"`
 		FileExtensions  []string `json:"fileExtensions"`
 	} `json:"fileFilters"`

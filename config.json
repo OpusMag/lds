@@ -29,13 +29,6 @@
         "size": 12,
         "style": "bold"
     },
-    "layout": {
-        "directoryBoxWidth": 50,
-        "fileBoxWidth": 50,
-        "searchBoxHeight": 10,
-        "fileInfoBoxHeight": 20
-    },
-    "defaultDirectory": "/home/user/documents",
     "fileFilters": {
         "showHiddenFiles": false,
         "fileExtensions": [".txt", ".md", ".go"]
