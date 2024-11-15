@@ -132,6 +132,14 @@ func openFileInEditor(editor, fileName string) {
 	os.Exit(0)
 }
 
+func readFileContents(fileName string) (string, error) {
+	data, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 func main() {
 	// Load config
 	config, err := loadConfig("config.json")
@@ -268,6 +276,26 @@ func main() {
 				displayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, selectedFile, labelStyle, valueStyle)
 			} else if currentBox == 2 && bestMatch != nil {
 				displayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, *bestMatch, labelStyle, valueStyle)
+			}
+
+			// Display file contents in the directory box if a file is highlighted
+			if currentBox == 1 && len(boxes[currentBox]) > 0 {
+				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+				fileContents, err := readFileContents(selectedFile.Name)
+				if err == nil {
+					lines := strings.Split(fileContents, "\n")
+					for i, line := range lines {
+						if i >= increasedBoxHeight-2 { // Adjust to fit within the box
+							break
+						}
+						for j, r := range line {
+							if j >= boxWidth-4 { // Adjust to fit within the box
+								break
+							}
+							screen.SetContent(2+j, 1+i, r, nil, textStyle)
+						}
+					}
+				}
 			}
 
 			// Define the ASCII art
