@@ -1,0 +1,18 @@
+{
+    "colors": {
+        "white": "white",
+        "teal": "teal",
+        "highlight": "light_sky_blue",
+        "command": "forest_green",
+        "blinking": "lime_green",
+        "label": "slate_gray",
+        "value": "blue",
+        "focused": "pale_turquoise"
+    },
+    "navigation": {
+        "up": "Up",
+        "down": "Down",
+        "left": "Left",
+        "right": "Right"
+    }
+}

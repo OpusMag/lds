@@ -1,16 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-	"os/user"
-	"runtime"
-	"strings"
-	"syscall"
-	"time"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "os"
+    "os/exec"
+    "os/user"
+    "runtime"
+    "strings"
+    "syscall"
+    "time"
 
-	"github.com/gdamore/tcell/v2"
+    "github.com/gdamore/tcell/v2"
 )
 
 type FileInfo struct {
@@ -32,7 +34,26 @@ type FileInfo struct {
 	HardLinksCount  uint64
 }
 
+func loadConfig(filename string) (*Config, error) {
+    data, err := ioutil.ReadFile(filename)
+    if err != nil {
+        return nil, err
+    }
+    var config Config
+    err = json.Unmarshal(data, &config)
+    if err != nil {
+        return nil, err
+    }
+    return &config, nil
+}
+
 func main() {
+	// Load config
+	config, err := loadConfig("config.json")
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+        os.Exit(1)
+	}
 	// Initialize tcell screen
 	screen, err := tcell.NewScreen()
 	if err != nil {
@@ -74,15 +95,15 @@ func main() {
 			// Get terminal dimensions
 			width, height := screen.Size()
 
-			// Define styles
-			whiteStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-			tealStyle := tcell.StyleDefault.Foreground(tcell.ColorTeal)
-			highlightStyle := tcell.StyleDefault.Foreground(tcell.ColorLightSkyBlue).Bold(true)
-			commandStyle := tcell.StyleDefault.Foreground(tcell.ColorForestGreen).Bold(true)
-			blinkingStyle := tcell.StyleDefault.Foreground(tcell.ColorLimeGreen).Bold(true)
-			labelStyle := tcell.StyleDefault.Foreground(tcell.ColorSlateGray)
-			valueStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Bold(true)
-			focusedStyle := tcell.StyleDefault.Foreground(tcell.ColorPaleTurquoise).Bold(true)
+			// Define styles using config colors
+			whiteStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.White))
+			tealStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Teal))
+			highlightStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Highlight)).Bold(true)
+			commandStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Command)).Bold(true)
+			blinkingStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Blinking)).Bold(true)
+			labelStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Label))
+			valueStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Value)).Bold(true)
+			focusedStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Focused)).Bold(true)
 
 			// Calculate box dimensions
 			boxWidth := width / 2
