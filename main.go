@@ -364,18 +364,27 @@ func getSELinuxContext(info os.FileInfo) string {
 	return "N/A"
 }
 
-// Check if the file is part of a Git repository and if it is modified
+// Check if the file or directory is part of a Git repository
 func getGitRepoStatus(file os.DirEntry) string {
-	// Check if the file is part of a Git repository
-	cmd := exec.Command("git", "status", "--porcelain", file.Name())
-	output, err := cmd.Output()
-	if err != nil {
-		return "Not a git repository"
+	if file.IsDir() {
+		// Check if the directory contains a .git directory
+		gitDir := fmt.Sprintf("%s/.git", file.Name())
+		if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+			return "Not a git repository"
+		}
+		return "Git repository"
+	} else {
+		// Check if the file is part of a Git repository
+		cmd := exec.Command("git", "status", "--porcelain", file.Name())
+		output, err := cmd.Output()
+		if err != nil {
+			return "Not a git repository"
+		}
+		if len(output) == 0 {
+			return "Clean"
+		}
+		return "Modified"
 	}
-	if len(output) == 0 {
-		return "Clean"
-	}
-	return "Modified"
 }
 
 // How long since the file was last modified
@@ -649,74 +658,86 @@ func filterFiles(files []FileInfo, query string) []FileInfo {
 }
 
 func displayFileInfo(screen tcell.Screen, x, y, maxWidth int, file FileInfo, labelStyle, valueStyle tcell.Style) {
-	// Define labels and values
-	labels := []string{
-		"Name: ", "User permissions: ", "Group permissions: ", "Others permissions: ", "Owner: ", "Executable: ", "Symlink: ", "Symlink Target: ", "Mount: ", "Git: ", "Size: ", "File Type: ", "Last Access: ", "Creation Time: ", "Inode: ", "Hard Links: ",
+	// Define labels and values for the first column
+	labelsColumn1 := []string{
+		"Name: ", "Owner: ", "User permissions: ", "Group permissions: ", "Others permissions: ", "File Type: ", "Size: ", "Last Access: ", "Creation Time: ",
+	}
+	valuesColumn1 := []string{
+		file.Name, file.Owner, file.Permissions[1:4], file.Permissions[4:7], file.Permissions[7:10], file.FileType, fmt.Sprintf("%d bytes", file.Size), file.LastAccessTime, file.CreationTime,
 	}
 
-	// Ensure the permissions string has the expected length
-	if len(file.Permissions) < 10 {
-		file.Permissions = file.Permissions + strings.Repeat("-", 10-len(file.Permissions)) // Pad with dashes if the string is too short
+	// Define labels and values for the second column
+	labelsColumn2 := []string{
+		"Executable: ", "Git: ", "Mount: ", "Hard Links: ", "Inode: ", "Symlink: ", "Symlink Target: ",
+	}
+	valuesColumn2 := []string{
+		strings.ToUpper(fmt.Sprint(file.IsExecutable)), file.GitRepoStatus, file.MountPoint, fmt.Sprintf("%d", file.HardLinksCount), fmt.Sprintf("%d", file.Inode), fmt.Sprintf("%t", file.IsSymlink), file.SymlinkTarget,
 	}
 
-	// Break down the permissions into user, group, and others with explanations
-	userPermissions := fmt.Sprintf("User permissions: %s (Read: %s, Write: %s, Execute: %s)",
-		file.Permissions[1:4],
-		getPermissionChar(file.Permissions, 1),
-		getPermissionChar(file.Permissions, 2),
-		getPermissionChar(file.Permissions, 3))
+	// Calculate the number of lines available in the file info box
+	width, height := screen.Size()
+	boxWidth := width / 2
+	boxHeight := height / 2
 
-	groupPermissions := fmt.Sprintf("Group permissions: %s (Read: %s, Write: %s, Execute: %s)",
-		file.Permissions[4:7],
-		getPermissionChar(file.Permissions, 4),
-		getPermissionChar(file.Permissions, 5),
-		getPermissionChar(file.Permissions, 6))
+	// Display labels and values in two columns
+	columnWidth := boxWidth / 2
 
-	othersPermissions := fmt.Sprintf("Others permissions: %s (Read: %s, Write: %s, Execute: %s)",
-		file.Permissions[7:10],
-		getPermissionChar(file.Permissions, 7),
-		getPermissionChar(file.Permissions, 8),
-		getPermissionChar(file.Permissions, 9))
-
-	values := []string{
-		file.Name, userPermissions, groupPermissions, othersPermissions, file.Owner, strings.ToUpper(fmt.Sprint(file.IsExecutable)),
-		fmt.Sprintf("%t", file.IsSymlink), file.SymlinkTarget, file.MountPoint, file.GitRepoStatus,
-		fmt.Sprintf("%d bytes", file.Size), file.FileType, file.LastAccessTime, file.CreationTime, fmt.Sprintf("%d", file.Inode), fmt.Sprintf("%d", file.HardLinksCount),
-	}
-
-	// Display labels and values
-	for i, label := range labels {
+	// Display first column
+	for i, label := range labelsColumn1 {
 		labelX := x
 		valueX := x + len(label) + 1
+		row := y + i
+
+		// Wrap text if it exceeds the box height
+		if row >= y+boxHeight {
+			break
+		}
 
 		// Display label
 		for j, r := range label {
 			if labelX+j < maxWidth {
-				screen.SetContent(labelX+j, y+i, r, nil, labelStyle)
+				screen.SetContent(labelX+j, row, r, nil, labelStyle)
 			}
 		}
 
 		// Display value
-		if i >= 1 && i <= 3 { // Special handling for permissions to display each part on a new line
-			permissionsLines := strings.Split(values[i], "\n")
-			for k, line := range permissionsLines {
-				for j, r := range line {
-					if valueX+j < maxWidth {
-						screen.SetContent(valueX+j, y+i+k, r, nil, valueStyle)
-					}
-				}
+		value := valuesColumn1[i]
+		for j, r := range value {
+			if valueX+j < maxWidth {
+				screen.SetContent(valueX+j, row, r, nil, valueStyle)
 			}
-		} else {
-			for j, r := range values[i] {
-				if valueX+j < maxWidth {
-					screen.SetContent(valueX+j, y+i, r, nil, valueStyle)
-				}
+		}
+	}
+
+	// Display second column
+	for i, label := range labelsColumn2 {
+		labelX := x + columnWidth
+		valueX := labelX + len(label) + 1
+		row := y + i
+
+		// Wrap text if it exceeds the box height
+		if row >= y+boxHeight {
+			break
+		}
+
+		// Display label
+		for j, r := range label {
+			if labelX+j < maxWidth {
+				screen.SetContent(labelX+j, row, r, nil, labelStyle)
+			}
+		}
+
+		// Display value
+		value := valuesColumn2[i]
+		for j, r := range value {
+			if valueX+j < maxWidth {
+				screen.SetContent(valueX+j, row, r, nil, valueStyle)
 			}
 		}
 	}
 }
 
-// Get the permission character or a dash if out of range
+// Helper function to get the permission character or a dash if out of range
 func getPermissionChar(permissions string, index int) string {
 	if index < len(permissions) {
 		return string(permissions[index])

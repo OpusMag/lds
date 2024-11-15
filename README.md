@@ -18,7 +18,8 @@ Linux: Depending on your package manager:
     Go:
         sudo pacman -S go
         sudo dnf install go
-        sudo apt install go
+        sudo apt install golang-go
+        sudo snap install --classic go
 
 Windows:
 
