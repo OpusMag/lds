@@ -1,19 +1,91 @@
 package main
 
 import (
-    "encoding/json"
-    "fmt"
-    "io/ioutil"
-    "os"
-    "os/exec"
-    "os/user"
-    "runtime"
-    "strings"
-    "syscall"
-    "time"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"os/user"
+	"runtime"
+	"strings"
+	"syscall"
+	"time"
 
-    "github.com/gdamore/tcell/v2"
+	"github.com/gdamore/tcell/v2"
 )
+
+type Config struct {
+	Colors struct {
+		Text      string `json:"text"`
+		Border    string `json:"border"`
+		Highlight string `json:"highlight"`
+		Command   string `json:"command"`
+		Blinking  string `json:"blinking"`
+		Label     string `json:"label"`
+		Value     string `json:"value"`
+		Focused   string `json:"focused"`
+	} `json:"colors"`
+	Navigation struct {
+		Up    string `json:"up"`
+		Down  string `json:"down"`
+		Left  string `json:"left"`
+		Right string `json:"right"`
+	} `json:"navigation"`
+	KeyBindings struct {
+		Quit        string `json:"quit"`
+		NextBox     string `json:"nextBox"`
+		PreviousBox string `json:"previousBox"`
+		SelectUp    string `json:"selectUp"`
+		SelectDown  string `json:"selectDown"`
+		Execute     string `json:"execute"`
+		Backspace   string `json:"backspace"`
+	} `json:"keyBindings"`
+	Theme  string `json:"theme"`
+	Themes struct {
+		Dark struct {
+			Background string `json:"background"`
+			Foreground string `json:"foreground"`
+			Highlight  string `json:"highlight"`
+			Cursor     string `json:"cursor"`
+		} `json:"dark"`
+		Light struct {
+			Background string `json:"background"`
+			Foreground string `json:"foreground"`
+			Highlight  string `json:"highlight"`
+			Cursor     string `json:"cursor"`
+		} `json:"light"`
+	} `json:"themes"`
+	Font struct {
+		Size  int    `json:"size"`
+		Style string `json:"style"`
+	} `json:"font"`
+	Layout struct {
+		DirectoryBoxWidth int `json:"directoryBoxWidth"`
+		FileBoxWidth      int `json:"fileBoxWidth"`
+		SearchBoxHeight   int `json:"searchBoxHeight"`
+		FileInfoBoxHeight int `json:"fileInfoBoxHeight"`
+	} `json:"layout"`
+	DefaultDirectory string `json:"defaultDirectory"`
+	FileFilters      struct {
+		ShowHiddenFiles bool     `json:"showHiddenFiles"`
+		FileExtensions  []string `json:"fileExtensions"`
+	} `json:"fileFilters"`
+	Notifications struct {
+		Enabled  bool `json:"enabled"`
+		Duration int  `json:"duration"`
+	} `json:"notifications"`
+	Language string `json:"language"`
+	AutoSave struct {
+		Enabled  bool `json:"enabled"`
+		Interval int  `json:"interval"`
+	} `json:"autoSave"`
+	Logging struct {
+		Level string `json:"level"`
+		File  string `json:"file"`
+	} `json:"logging"`
+	PreferredEditor string `json:"preferredEditor"`
+}
 
 type FileInfo struct {
 	Name            string
@@ -35,24 +107,37 @@ type FileInfo struct {
 }
 
 func loadConfig(filename string) (*Config, error) {
-    data, err := ioutil.ReadFile(filename)
-    if err != nil {
-        return nil, err
-    }
-    var config Config
-    err = json.Unmarshal(data, &config)
-    if err != nil {
-        return nil, err
-    }
-    return &config, nil
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	var config Config
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+func openFileInEditor(editor, fileName string) {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd.exe", "/C", fmt.Sprintf("%s %s", editor, fileName))
+	} else {
+		cmd = exec.Command("sh", "-c", fmt.Sprintf("%s %s", editor, fileName))
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+	os.Exit(0)
 }
 
 func main() {
 	// Load config
 	config, err := loadConfig("config.json")
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-        os.Exit(1)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		os.Exit(1)
 	}
 	// Initialize tcell screen
 	screen, err := tcell.NewScreen()
@@ -96,8 +181,8 @@ func main() {
 			width, height := screen.Size()
 
 			// Define styles using config colors
-			whiteStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.White))
-			tealStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Teal))
+			textStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Text))
+			borderStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Border))
 			highlightStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Highlight)).Bold(true)
 			commandStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Command)).Bold(true)
 			blinkingStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Blinking)).Bold(true)
@@ -112,10 +197,10 @@ func main() {
 			increasedBoxHeight := boxHeight + halfBoxHeight
 
 			// Draw borders for the boxes
-			drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, tealStyle)                                    // Directories
-			drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, tealStyle)                                // Files
-			drawBorder(screen, 0, increasedBoxHeight, boxWidth-1, increasedBoxHeight+halfBoxHeight-1, tealStyle)     // Search
-			drawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, tealStyle) // File Info
+			drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, borderStyle)                                    // Directories
+			drawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, borderStyle)                                // Files
+			drawBorder(screen, 0, increasedBoxHeight, boxWidth-1, increasedBoxHeight+halfBoxHeight-1, borderStyle)     // Search
+			drawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, borderStyle) // File Info
 
 			// Display titles for the boxes
 			titles := []string{"Directories", "Files", "Search", "File Info"}
@@ -132,7 +217,7 @@ func main() {
 					x, y = boxWidth, increasedBoxHeight
 				}
 				for j, r := range title {
-					screen.SetContent(x+1+j, y, r, nil, whiteStyle)
+					screen.SetContent(x+1+j, y, r, nil, textStyle)
 				}
 			}
 
@@ -161,7 +246,7 @@ func main() {
 				if box != nil {
 					for j := scrollPositions[i]; j < len(box) && j < scrollPositions[i]+boxHeight-3; j++ {
 						file := box[j]
-						style := whiteStyle
+						style := textStyle
 						if j == selectedIndices[i] && currentBox == i {
 							style = highlightStyle
 						}
@@ -214,13 +299,13 @@ func main() {
 			// Render the ASCII art in the background
 			for y, line := range asciiArtLines {
 				for x, r := range line {
-					screen.SetContent(asciiArtX+x, asciiArtY+y, r, nil, tealStyle)
+					screen.SetContent(asciiArtX+x, asciiArtY+y, r, nil, borderStyle)
 				}
 			}
 
 			// Display user input in the search box
 			for i, r := range userInput {
-				screen.SetContent(1+i, increasedBoxHeight+1, r, nil, whiteStyle)
+				screen.SetContent(1+i, increasedBoxHeight+1, r, nil, textStyle)
 			}
 
 			// Display blinking cursor in the search box if it is highlighted
@@ -251,8 +336,21 @@ func main() {
 			switch ev := ev.(type) {
 			case *tcell.EventKey:
 				switch ev.Key() {
-				case tcell.KeyEscape, tcell.KeyCtrlC:
+				case tcell.KeyCtrlC:
 					return
+				case tcell.KeyEscape:
+					err := os.Chdir("..")
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error changing directory: %v\n", err)
+					} else {
+						// Clear user input
+						userInput = []rune{}
+						// Reset scroll positions and selected indices
+						scrollPositions = []int{0, 0, 0, 0}
+						selectedIndices = []int{0, 0, 0, 0}
+						// Rerun the directory reading and updating logic
+						directories, regularFiles, hiddenFiles, bestMatch = readDirectoryAndUpdateBestMatch(screen, "")
+					}
 				case tcell.KeyTab:
 					currentBox = (currentBox + 1) % len(titles) // Ensure currentBox wraps correctly
 				case tcell.KeyUp:
@@ -278,29 +376,15 @@ func main() {
 						}
 					}
 				case tcell.KeyEnter:
-					if currentBox == 2 && string(userInput) == ".." { // Check for .. command
-						err := os.Chdir("..")
-						if err != nil {
-							fmt.Fprintf(os.Stderr, "Error changing directory: %v\n", err)
-						} else {
-							// Clear user input
-							userInput = []rune{}
-							// Reset scroll positions and selected indices
-							scrollPositions = []int{0, 0, 0, 0}
-							selectedIndices = []int{0, 0, 0, 0}
-							// Rerun the directory reading and updating logic
-							directories, regularFiles, hiddenFiles, bestMatch = readDirectoryAndUpdateBestMatch(screen, "")
-						}
-					} else if currentBox == 2 && bestMatch != nil { // Search box
-						showCommandPopup(screen, bestMatch.Name)
-					} else if len(boxes[currentBox]) > 0 {
+					if currentBox == 2 && bestMatch != nil { // Search box
+						openFileInEditor(config.PreferredEditor, bestMatch.Name)
+					} else if currentBox == 1 && len(boxes[currentBox]) > 0 { // File box
 						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
-						if currentBox == 0 { // Directory
-							screen.Fini()
-							changeDirectoryAndRerun(selectedFile.Name)
-						} else { // File
-							showCommandPopup(screen, selectedFile.Name)
-						}
+						openFileInEditor(config.PreferredEditor, selectedFile.Name)
+					} else if currentBox == 0 && len(boxes[currentBox]) > 0 { // Directory box
+						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+						screen.Fini()
+						changeDirectoryAndRerun(selectedFile.Name)
 					}
 				case tcell.KeyBackspace, tcell.KeyBackspace2:
 					if currentBox == 2 && len(userInput) > 0 {
@@ -562,7 +646,7 @@ func showCommandPopup(screen tcell.Screen, fileName string) {
 			width, height := screen.Size()
 
 			// Define styles
-			whiteStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+			textStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 			//highlightStyle := tcell.StyleDefault.Foreground(tcell.ColorLightSkyBlue).Bold(true)
 
 			// Draw border for the popup
@@ -572,22 +656,22 @@ func showCommandPopup(screen tcell.Screen, fileName string) {
 			y1 := (height - popupHeight) / 2
 			x2 := x1 + popupWidth - 1
 			y2 := y1 + popupHeight - 1
-			drawBorder(screen, x1, y1, x2, y2, whiteStyle)
+			drawBorder(screen, x1, y1, x2, y2, textStyle)
 
 			// Display prompt
 			prompt := "Enter command:"
 			for i, r := range prompt {
-				screen.SetContent(x1+2+i, y1+2, r, nil, whiteStyle)
+				screen.SetContent(x1+2+i, y1+2, r, nil, textStyle)
 			}
 
 			// Display user input
 			for i, r := range commandInput {
-				screen.SetContent(x1+2+len(prompt)+1+i, y1+2, r, nil, whiteStyle)
+				screen.SetContent(x1+2+len(prompt)+1+i, y1+2, r, nil, textStyle)
 			}
 
 			// Display blinking cursor
 			if cursorVisible {
-				screen.SetContent(x1+2+len(prompt)+1+len(commandInput), y1+2, '_', nil, whiteStyle)
+				screen.SetContent(x1+2+len(prompt)+1+len(commandInput), y1+2, '_', nil, textStyle)
 			}
 
 			screen.Show()

@@ -1,10 +1,10 @@
 {
     "colors": {
-        "white": "white",
-        "teal": "teal",
-        "highlight": "light_sky_blue",
-        "command": "forest_green",
-        "blinking": "lime_green",
+        "text": "white",
+        "border": "teal",
+        "highlight": "blue",
+        "command": "dark_blue",
+        "blinking": "light_blue",
         "label": "slate_gray",
         "value": "blue",
         "focused": "pale_turquoise"
@@ -14,5 +14,44 @@
         "down": "Down",
         "left": "Left",
         "right": "Right"
-    }
+    },
+    "keyBindings": {
+        "quit": "Ctrl+C",
+        "nextBox": "Tab",
+        "previousBox": "Shift+Tab",
+        "selectUp": "Up",
+        "selectDown": "Down",
+        "execute": "Enter",
+        "goBack": "Esc",
+        "backspace": "Backspace"
+    },
+    "font": {
+        "size": 12,
+        "style": "bold"
+    },
+    "layout": {
+        "directoryBoxWidth": 50,
+        "fileBoxWidth": 50,
+        "searchBoxHeight": 10,
+        "fileInfoBoxHeight": 20
+    },
+    "defaultDirectory": "/home/user/documents",
+    "fileFilters": {
+        "showHiddenFiles": false,
+        "fileExtensions": [".txt", ".md", ".go"]
+    },
+    "notifications": {
+        "enabled": true,
+        "duration": 5
+    },
+    "language": "en",
+    "autoSave": {
+        "enabled": true,
+        "interval": 10
+    },
+    "logging": {
+        "level": "info",
+        "file": "/var/log/app.log"
+    },
+    "preferredEditor": "vim"
 }
