@@ -3,15 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -99,6 +104,34 @@ type FileInfo struct {
 	HardLinksCount  uint64
 }
 
+func expandPath(path string) (string, error) {
+	if strings.HasPrefix(path, "~") {
+		usr, err := user.Current()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(usr.HomeDir, path[1:]), nil
+	}
+	return path, nil
+}
+
+func setupLogging(logFile string) {
+	logFilePath, err := expandPath(logFile)
+	if err != nil {
+		log.Fatalf("Failed to expand log file path: %v", err)
+	}
+	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %v", err)
+	}
+	log.SetOutput(file)
+}
+
+func logErrorAndExit(message string, err error) {
+	log.Printf("%s: %v\n", message, err)
+	os.Exit(1)
+}
+
 func loadConfig(filename string) (*Config, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -110,6 +143,39 @@ func loadConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 	return &config, nil
+}
+
+func showHelp() {
+	fmt.Println("Usage: tool [options]")
+	fmt.Println("Options:")
+	fmt.Println("  --help, -h       Show help")
+	fmt.Println("  --version, -v    Show version")
+	// Add more options as needed
+	os.Exit(0)
+}
+
+func watchConfigFile(filename string, reloadConfig chan<- struct{}) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer watcher.Close()
+
+	err = watcher.Add(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for {
+		select {
+		case event := <-watcher.Events:
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				reloadConfig <- struct{}{}
+			}
+		case err := <-watcher.Errors:
+			log.Println("error:", err)
+		}
+	}
 }
 
 func openFileInEditor(editor, fileName string) {
@@ -133,13 +199,69 @@ func readFileContents(fileName string) (string, error) {
 	return string(data), nil
 }
 
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return destFile.Sync()
+}
+
+func moveFile(src, dst string) error {
+	return os.Rename(src, dst)
+}
+
+func deleteFile(fileName string) error {
+	return os.Remove(fileName)
+}
+
+func renameFile(oldName, newName string) error {
+	return os.Rename(oldName, newName)
+}
+
+func calculateBoxDimensions(width, height int) (int, int, int, int) {
+	boxWidth := width / 2
+	boxHeight := height / 2
+	halfBoxHeight := boxHeight / 2
+	increasedBoxHeight := boxHeight + halfBoxHeight
+	return boxWidth, boxHeight, halfBoxHeight, increasedBoxHeight
+}
+
 func main() {
+	// Check for help flag
+	for _, arg := range os.Args[1:] {
+		if arg == "--help" || arg == "-h" {
+			showHelp()
+		}
+	}
+
 	// Load config
 	config, err := loadConfig("config.json")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Setup logging
+	setupLogging(config.Logging.File)
+
+	// Channel to signal config reload
+	reloadConfig := make(chan struct{})
+	go watchConfigFile("config.json", reloadConfig)
+
 	// Initialize tcell screen
 	screen, err := tcell.NewScreen()
 	if err != nil {
@@ -175,11 +297,14 @@ func main() {
 		select {
 		case <-ticker.C:
 			cursorVisible = !cursorVisible
+		case <-reloadConfig:
+			config, err = loadConfig("config.json")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+				os.Exit(1)
+			}
 		default:
 			screen.Clear()
-
-			// Get terminal dimensions
-			width, height := screen.Size()
 
 			// Define styles using config colors
 			textStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Text))
@@ -191,11 +316,9 @@ func main() {
 			valueStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Value)).Bold(true)
 			focusedStyle := tcell.StyleDefault.Foreground(tcell.GetColor(config.Colors.Focused)).Bold(true)
 
-			// Calculate box dimensions
-			boxWidth := width / 2
-			boxHeight := height / 2
-			halfBoxHeight := boxHeight / 2
-			increasedBoxHeight := boxHeight + halfBoxHeight
+			// Get terminal dimensions
+			width, height := screen.Size()
+			boxWidth, boxHeight, halfBoxHeight, increasedBoxHeight := calculateBoxDimensions(width, height)
 
 			// Draw borders for the boxes
 			drawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, borderStyle)                                    // Directories
@@ -272,7 +395,7 @@ func main() {
 			}
 
 			// Display file contents in the directory box if a file is highlighted
-			if currentBox == 1 && len(boxes[currentBox]) > 0 {
+			if (currentBox == 1 || currentBox == 2) && len(boxes[currentBox]) > 0 {
 				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 				fileContents, err := readFileContents(selectedFile.Name)
 				if err == nil {
@@ -423,6 +546,30 @@ func main() {
 			}
 		}
 	}
+}
+
+var wg sync.WaitGroup
+
+func asyncCopyFile(src, dst string) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := copyFile(src, dst)
+		if err != nil {
+			log.Println("Error copying file:", err)
+		}
+	}()
+}
+
+var fileCache = make(map[string]FileInfo)
+
+func cacheFileInfo(file FileInfo) {
+	fileCache[file.Name] = file
+}
+
+func getCachedFileInfo(fileName string) (FileInfo, bool) {
+	fileInfo, found := fileCache[fileName]
+	return fileInfo, found
 }
 
 // Check if the file is a symlink and get the target

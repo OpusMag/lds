@@ -44,7 +44,7 @@
     },
     "logging": {
         "level": "info",
-        "file": "/var/log/app.log"
+        "file": "~/app.log"
     },
     "preferredEditor": "vim"
 }
