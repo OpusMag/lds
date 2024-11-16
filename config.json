@@ -23,7 +23,11 @@
         "selectDown": "Down",
         "execute": "Enter",
         "goBack": "Esc",
-        "backspace": "Backspace"
+        "backspace": "Backspace",
+        "rename": "Ctrl+Alt+R",
+        "move": "Ctrl+Alt+M",
+        "delete": "Ctrl+Alt+D",
+        "copy": "Ctrl+Alt+C"
     },
     "font": {
         "size": 12,

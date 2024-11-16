@@ -45,6 +45,10 @@ type Config struct {
 		SelectDown  string `json:"selectDown"`
 		Execute     string `json:"execute"`
 		Backspace   string `json:"backspace"`
+		Rename      string `json:"rename"`
+		Move        string `json:"move"`
+		Delete      string `json:"delete"`
+		Copy        string `json:"copy"`
 	} `json:"keyBindings"`
 	Theme  string `json:"theme"`
 	Themes struct {
@@ -232,6 +236,64 @@ func deleteFile(fileName string) error {
 
 func renameFile(oldName, newName string) error {
 	return os.Rename(oldName, newName)
+}
+
+// TODO: Complete the implementation of this
+func promptForInput(screen tcell.Screen, prompt string) string {
+	width, height := screen.Size()
+	boxWidth, boxHeight, halfBoxHeight, increasedBoxHeight := calculateBoxDimensions(width, height)
+
+	// Draw borders for the input box
+	drawBorder(screen, 0, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, tcell.StyleDefault.Foreground(tcell.ColorWhite))
+
+	// Display the prompt
+	for i, r := range prompt {
+		screen.SetContent(1+i, increasedBoxHeight+1, r, nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
+	}
+
+	// Buffer for user input
+	var userInput []rune
+
+	// Blinking cursor state
+	cursorVisible := true
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		screen.Clear()
+
+		// Display user input in the search box
+		for i, r := range userInput {
+			screen.SetContent(1+i, increasedBoxHeight+2, r, nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
+		}
+
+		// Display blinking cursor in the search box
+		if cursorVisible {
+			screen.SetContent(1+len(userInput), increasedBoxHeight+2, '_', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
+		}
+
+		screen.Show()
+
+		select {
+		case <-ticker.C:
+			cursorVisible = !cursorVisible
+		case ev := <-screen.PollEvent(): // Why doesn't this work?
+			if ev, ok := ev.(*tcell.EventKey); ok {
+				switch ev.Key() {
+				case tcell.KeyEnter:
+					return string(userInput)
+				case tcell.KeyBackspace, tcell.KeyBackspace2:
+					if len(userInput) > 0 {
+						userInput = userInput[:len(userInput)-1]
+					}
+				default:
+					if ev.Rune() != 0 {
+						userInput = append(userInput, ev.Rune())
+					}
+				}
+			}
+		}
+	}
 }
 
 func calculateBoxDimensions(width, height int) (int, int, int, int) {
@@ -535,6 +597,44 @@ func main() {
 				case tcell.KeyBackspace, tcell.KeyBackspace2:
 					if currentBox == 2 && len(userInput) > 0 {
 						userInput = userInput[:len(userInput)-1]
+					}
+				case tcell.KeyCtrlAltR: //Can't handle three key combinations? Gotta look into it
+					if currentBox == 1 && len(boxes[currentBox]) > 0 {
+						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+						newName := promptForInput(screen, "Rename to:")
+						if newName != "" {
+							err := renameFile(selectedFile.Name, newName)
+							if err != nil {
+								log.Println("Error renaming file:", err)
+							}
+						}
+					}
+				case tcell.KeyCtrlAltM:
+					if currentBox == 1 && len(boxes[currentBox]) > 0 {
+						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+						newLocation := promptForInput(screen, "Move to:")
+						if newLocation != "" {
+							err := moveFile(selectedFile.Name, newLocation)
+							if err != nil {
+								log.Println("Error moving file:", err)
+							}
+						}
+					}
+				case tcell.KeyCtrlAltD:
+					if currentBox == 1 && len(boxes[currentBox]) > 0 {
+						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+						err := deleteFile(selectedFile.Name)
+						if err != nil {
+							log.Println("Error deleting file:", err)
+						}
+					}
+				case tcell.KeyCtrlAltC:
+					if currentBox == 1 && len(boxes[currentBox]) > 0 {
+						selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+						newLocation := promptForInput(screen, "Copy to:")
+						if newLocation != "" {
+							asyncCopyFile(selectedFile.Name, newLocation)
+						}
 					}
 				default:
 					if ev.Rune() != 0 {
