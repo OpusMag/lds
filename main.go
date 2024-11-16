@@ -145,6 +145,7 @@ func loadConfig(filename string) (*Config, error) {
 	return &config, nil
 }
 
+// TODO: Need to expand this so the user gets more helpful info
 func showHelp() {
 	fmt.Println("Usage: tool [options]")
 	fmt.Println("Options:")
@@ -199,6 +200,7 @@ func readFileContents(fileName string) (string, error) {
 	return string(data), nil
 }
 
+// TODO: Implement logic for these so the user can use them within lds
 func copyFile(src, dst string) error {
 	sourceFile, err := os.Open(src)
 	if err != nil {
