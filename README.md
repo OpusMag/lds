@@ -181,11 +181,11 @@ Option B: Build from source
 
 ## Getting Started
 
-To use `lds`, simply run: `lds`
+To start `lds`, simply run: `lds`
 
 ## Usage
 
-More specific info on usage:
+How to navigate, configure and change keybindings in lds:
 
 ## Navigation
 
