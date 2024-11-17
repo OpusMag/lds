@@ -158,9 +158,7 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 						fileops.CopyFile(selectedFile.Name, newLocation)
 					}
 				}
-			}
-		default:
-			if ev.Rune() != 0 {
+			} else {
 				if currentBox == 2 {
 					userInput = append(userInput, ev.Rune())
 				}
