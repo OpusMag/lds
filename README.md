@@ -189,29 +189,29 @@ More specific info on usage:
 
 ## Navigation
 
-Move between boxes: Tab
-Navigate to parent directory: Press escape
-Navigate to sub directory: Highlight directory and press Enter (navigate to Directory box and use arrow keys)
-Highlight a file: Use the arrow keys
-Open a file in an editor: highlight the file and hit Enter (highlighting can be done by searching or navigating to Files box and using arrow keys)
+- Move between boxes: Tab
+- Navigate to parent directory: Press escape
+- Navigate to sub directory: Highlight directory and press Enter (navigate to Directory box and use arrow keys)
+- Highlight a file: Tab to the Files box and use the up and down arrow keys
+- Open a file in an editor: highlight the file and hit Enter (highlighting can be done by searching or navigating to Files box and using arrow keys)
 
 ## Configuration
 
-The configuration file is located at ~/.config/lds/config.json. You can customize colors, key bindings, and other settings.
+The configuration file should by default be located at ~/.config/lds/config.json. You can however have the config file wherever you want, but you have to add the path to configPath in main.go if you choose a different location than the defaults. In the config file you can customize colors, key bindings, and other settings.
 
 ## Key Bindings
 
-Quit: Ctrl+C
-Next Box: Tab
-Previous Box: Shift+Tab
-Go to parent directory: Press escape
-Go to sub directory: Highlight directory and press Enter
-Open a file in an editor : After highlighting a file, press Enter (highlighting can be done by searching or navigating to Files box and using arrow keys)
-Backspace: Backspace
-Rename: Ctrl+Alt+R
-Move: Ctrl+Alt+M
-Delete: Ctrl+Alt+D
-Copy: Ctrl+Alt+C
+- Quit: Ctrl+C
+- Next Box: Tab
+- Previous Box: Shift+Tab
+- Go to parent directory: Press escape
+- Go to sub directory: Highlight directory and press Enter
+- Open a file in an editor : After highlighting a file, press Enter (highlighting can be done by searching or navigating to Files box and using arrow keys)
+- Backspace: Backspace
+- Rename: Ctrl+Alt+R
+- Move: Ctrl+Alt+M
+- Delete: Ctrl+Alt+D
+- Copy: Ctrl+Alt+C
 
 ## Contributing
 
