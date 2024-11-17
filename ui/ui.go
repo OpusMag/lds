@@ -50,10 +50,20 @@ func DrawTitle(screen tcell.Screen, title string) {
 }
 
 func DrawPrompt(screen tcell.Screen, prompt string) {
-	screen.Clear()
-	screen.Show()
-	DrawTitle(screen, "Prompt")
-	DrawText(screen, 0, 2, prompt)
+	width, height := screen.Size()
+	boxWidth := width / 2
+	boxHeight := height / 4
+	x1 := (width - boxWidth) / 2
+	y1 := (height - boxHeight) / 2
+	x2 := x1 + boxWidth - 1
+	y2 := y1 + boxHeight - 1
+
+	// Draw the border for the prompt box
+	DrawBorder(screen, x1, y1, x2, y2, tcell.StyleDefault.Foreground(tcell.ColorWhite))
+
+	// Draw the prompt text inside the box
+	DrawText(screen, x1+2, y1+2, prompt)
+
 	screen.Show()
 }
 
