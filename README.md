@@ -1,98 +1,226 @@
 # lds
-An alternative to the ls command that makes it easier to get your bearings in a complicated directory with lots of files
+
+An alternative to the `ls` command that makes it easier to navigate complicated directories with lots of files.
 
 ![lds](https://github.com/user-attachments/assets/f38c2770-5e40-4886-b6b0-4e444f298942)
 
+## Table of Contents
 
-To use this tool:
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+  - [Linux](#linux)
+  - [Windows](#windows)
+  - [macOS](#macos)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Key Bindings](#key-bindings)
+- [Contributing](#contributing)
+- [Support](#support)
+- [License](#license)
 
-Install dependencies first (Git and Go programming language).
+## Features
 
-Linux: Depending on your package manager:
+- Easy navigation in complex directories
+- Search functionality
+- File and directory operations (rename, move, delete, copy)
+- Git repository status
+- Customizable key bindings and themes
 
-    Git:
-        sudo pacman -S git -y
-        sudo dnf install git-all
-        sudo apt install git-all
+## Prerequisites
 
-    Go:
-        sudo pacman -S go
-        sudo dnf install go
-        sudo apt install golang-go
-        sudo snap install --classic go
+- Git
+- Go programming language
 
-Windows:
+## Installation
 
-    Git:
-        go to https://git-scm.com/download/win and the download should start automatically. Then install it.
+### Linux
 
-    Go:
-        go to https://golang.org/dl/ and download the latest version of go.
-        Follow this guide to install properly: https://www.geeksforgeeks.org/how-to-install-go-on-windows/
+#### Dependencies
 
-macOS
+Install Git and Go:
 
-    Git:
-        Using Homebrew (Recommended):
+- Arch Linux:
+  ```sh
+  sudo pacman -S git go
+  ```
+- Fedora:
+  ```sh
+  sudo dnf install git-all go
+  ```
+- Ubuntu/Debian:
+  ```sh
+  sudo apt install git-all golang-go
+  ```
+- Snap:
+  ```sh
+  sudo snap install --classic go
+  ```
 
-        brew install git
+#### Install `lds`
 
-Using Xcode Command Line Tools:
+Option A: Download the binary
 
-xcode-select --install
+1. Go to the [latest release](https://github.com/OpusMag/lds) and download the binary.
+2. Make it executable:
+   ```sh
+   chmod +x ~/Downloads/lds
+   ```
+3. Move it to `/usr/local/bin/`:
+   ```sh
+   sudo mv ~/Downloads/lds /usr/local/bin/
+   ```
 
-Go:
+Option B: Build from source
 
-    Using Homebrew (Recommended):
+1. Clone the repository:
+   ```sh
+   git clone https://github.com/OpusMag/lds
+   cd lds
+   ```
+2. Build the binary:
+   ```sh
+   go mod tidy
+   go build -o lds main.go
+   ```
+3. Move it to `/usr/local/bin/`:
+   ```sh
+   sudo mv lds /usr/local/bin/
+   ```
 
+### Windows
+
+#### Dependencies
+
+Install Git and Go:
+
+- Git: [Download Git](https://git-scm.com/download/win) and install it.
+- Go: [Download Go](https://golang.org/dl/) and follow the [installation guide](https://www.geeksforgeeks.org/how-to-install-go-on-windows/).
+
+#### Install `lds`
+
+Option A: Download the binary
+
+1. Go to the [latest release](https://github.com/OpusMag/lds) and download `lds.exe`.
+2. Move the binary to a directory (e.g., `C:\Tools`).
+3. Add the directory to PATH:
+   - Press `Win + X` and select `System`.
+   - Click on `Advanced system settings`.
+   - In the `System properties` window, click on `Environment variables`.
+   - Find the `Path` variable in the `System variables` section and click `Edit`.
+   - Click `New` and add the path to the directory where you placed `lds.exe` (e.g., `C:\Tools`).
+
+Option B: Build from source
+
+1. Clone the repository:
+   ```sh
+   git clone https://github.com/OpusMag/lds
+   cd lds
+   ```
+2. Build the binary:
+   ```sh
+   go mod tidy
+   go build -o lds.exe main.go
+   ```
+
+### macOS
+
+#### Dependencies
+
+Install Git and Go:
+
+- Git:
+  - Using Homebrew (Recommended):
+    ```sh
+    brew install git
+    ```
+  - Using Xcode Command Line Tools:
+    ```sh
+    xcode-select --install
+    ```
+- Go:
+  - Using Homebrew (Recommended):
+    ```sh
     brew install go
+    ```
+  - Manual Installation:
+    1. [Download Go](https://golang.org/dl/).
+    2. Open the downloaded `.pkg` file and follow the instructions to install Go.
 
-        Manual Installation:
-            Download the latest version of Go from https://golang.org/dl/
-            Open the downloaded .pkg file and follow the instructions to install Go.
+#### Install `lds`
 
-Linux and macOS instructions for installing lds:
+Option A: Download the binary
 
-Option A:
+1. Go to the [latest release](https://github.com/OpusMag/lds) and download the binary.
+2. Make it executable:
+   ```sh
+   chmod +x ~/Downloads/lds
+   ```
+3. Move it to `/usr/local/bin/`:
+   ```sh
+   sudo mv ~/Downloads/lds /usr/local/bin/
+   ```
 
-    Go to the latest release at https://github.com/OpusMag/lds and download the binary.
-    Run chmod +x ~/Downloads/lds (or whatever dir you downloaded it to)
-    Move it to /usr/local/bin/ by running sudo mv lds /usr/local/bin/
+Option B: Build from source
 
-Option B:
+1. Clone the repository:
+   ```sh
+   git clone https://github.com/OpusMag/lds
+   cd lds
+   ```
+2. Build the binary:
+   ```sh
+   go mod tidy
+   go build -o lds main.go
+   ```
+3. Move it to `/usr/local/bin/`:
+   ```sh
+   sudo mv lds /usr/local/bin/
+   ```
 
-    Enter your terminal.
+## Getting Started
 
-    Git clone this repository either by using the URL or SSH (you can find this by clicking the green button in the upper right that says '<>Code').
+To use `lds`, simply run: `lds`
 
-    Then cd (change directory) into the repository.
+## Usage
 
-    Run the following commands to build and run the CLI:
+More specific info on usage:
 
-    go mod tidy go build -o lds main.go ./lds
+## Navigation
 
-    If you want to use it without the ./ prefix you can do the following: while in the lds directory and after building the binary: sudo mv lds /usr/local/bin/
+Move between boxes: Tab
+Navigate to parent directory: Press escape
+Navigate to sub directory: Highlight directory and press Enter (navigate to Directory box and use arrow keys)
+Highlight a file: Use the arrow keys
+Open a file in an editor: highlight the file and hit Enter (highlighting can be done by searching or navigating to Files box and using arrow keys)
 
-    Confirm it has worked: lds --help
+## Configuration
 
-Windows instructions:
+The configuration file is located at ~/.config/lds/config.json. You can customize colors, key bindings, and other settings.
 
-Option A:
+## Key Bindings
 
-    Go to the latest release at https://github.com/OpusMag/lds, download the binary lds.exe.
-    Move the binary to a directory, for example C:\Tools.
-    Add the directory to PATH by pressing Win + X and selecting System, then click on Advanced system settings.
-    In the System properties window, click on the Environment variables button.
-    In the Environment Variables window, find the Path variable in the System variables section and select it and click Edit.
-    In the Edit Environment Variable window, click New and add the path to the directory where you placed lds.exe (for example c:\Tools), then click OK to close.
-    Verify it's working by opening a terminal and running 'lds --help'.
+Quit: Ctrl+C
+Next Box: Tab
+Previous Box: Shift+Tab
+Go to parent directory: Press escape
+Go to sub directory: Highlight directory and press Enter
+Open a file in an editor : After highlighting a file, press Enter (highlighting can be done by searching or navigating to Files box and using arrow keys)
+Backspace: Backspace
+Rename: Ctrl+Alt+R
+Move: Ctrl+Alt+M
+Delete: Ctrl+Alt+D
+Copy: Ctrl+Alt+C
 
-Option B:
+## Contributing
 
-    'git clone https://github.com/OpusMag/lds' then cd into the repository.
-    Run 'go mod tidy' in the terminal to make sure dependencies are installed.
-    Then run 'go build -o what-cmd.exe main.go'. Then run the tool with '.\lds.exe'
+Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 
-General use of the tool(both windows and linux):
+## Support
 
-    You move between boxes by pressing tab. When you're in the search box, you can either search for a directory or file or press .. and then hit enter to navigate to the parent directory. If you move to the file box and highlight a file by scrolling up or down using the arrow keys, a new box appears that allows you to input a command you can perform on the highlighted file. If you move to the directory box and highlight a directory and then hit enter, you automatically navigate to that directory.
+For support, please open an issue on GitHub.
+
+## License
+
+This project is licensed under the MIT License.
