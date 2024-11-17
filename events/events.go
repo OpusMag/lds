@@ -38,7 +38,6 @@ func WatchConfigFile(filename string, reloadConfig chan<- struct{}) {
 
 func PromptForInput(screen tcell.Screen, prompt string) string {
 	screen.Clear()
-	screen.Show()
 	ui.DrawPrompt(screen, prompt)
 	screen.Show()
 
@@ -62,6 +61,8 @@ func PromptForInput(screen tcell.Screen, prompt string) string {
 		case *tcell.EventResize:
 			screen.Sync()
 		}
+		ui.DrawPrompt(screen, prompt+string(input))
+		screen.Show()
 	}
 }
 
@@ -80,7 +81,7 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 				utils.ChangeDirectoryAndRerun(selectedFile.Name, up)
 			}
 		case tcell.KeyTab:
-			currentBox = (currentBox + 1) % len(ui.Titles) // Ensure currentBox wraps correctly
+			currentBox = (currentBox + 1) % len(ui.Titles)
 		case tcell.KeyUp:
 			if selectedIndices[currentBox] > 0 {
 				selectedIndices[currentBox]--
@@ -120,7 +121,7 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 				userInput = userInput[:len(userInput)-1]
 			}
 		case tcell.KeyRune:
-			if ev.Rune() == 'r' && ev.Modifiers() == (tcell.ModCtrl|tcell.ModAlt) {
+			if ev.Rune() == 'r' && ev.Modifiers() == (tcell.ModAlt) {
 				if currentBox == 1 && len(boxes[currentBox]) > 0 {
 					selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 					newName := PromptForInput(screen, "Rename to:")
@@ -128,10 +129,12 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 						err := fileops.RenameFile(selectedFile.Name, newName)
 						if err != nil {
 							log.Println("Error renaming file:", err)
+						} else {
+							log.Println("File renamed successfully")
 						}
 					}
 				}
-			} else if ev.Rune() == 'm' && ev.Modifiers() == (tcell.ModCtrl|tcell.ModAlt) {
+			} else if ev.Rune() == 'm' && ev.Modifiers() == (tcell.ModAlt) {
 				if currentBox == 1 && len(boxes[currentBox]) > 0 {
 					selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 					newLocation := PromptForInput(screen, "Move to:")
@@ -139,23 +142,32 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 						err := fileops.MoveFile(selectedFile.Name, newLocation)
 						if err != nil {
 							log.Println("Error moving file:", err)
+						} else {
+							log.Println("File moved successfully")
 						}
 					}
 				}
-			} else if ev.Rune() == 'd' && ev.Modifiers() == (tcell.ModCtrl|tcell.ModAlt) {
+			} else if ev.Rune() == 'd' && ev.Modifiers() == (tcell.ModAlt) {
 				if currentBox == 1 && len(boxes[currentBox]) > 0 {
 					selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 					err := fileops.DeleteFile(selectedFile.Name)
 					if err != nil {
 						log.Println("Error deleting file:", err)
+					} else {
+						log.Println("File deleted successfully")
 					}
 				}
-			} else if ev.Rune() == 'c' && ev.Modifiers() == (tcell.ModCtrl|tcell.ModAlt) {
+			} else if ev.Rune() == 'c' && ev.Modifiers() == (tcell.ModAlt) {
 				if currentBox == 1 && len(boxes[currentBox]) > 0 {
 					selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 					newLocation := PromptForInput(screen, "Copy to:")
 					if newLocation != "" {
-						fileops.CopyFile(selectedFile.Name, newLocation)
+						err := fileops.CopyFile(selectedFile.Name, newLocation)
+						if err != nil {
+							log.Println("Error copying file:", err)
+						} else {
+							log.Println("File copied successfully")
+						}
 					}
 				}
 			} else {

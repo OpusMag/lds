@@ -98,7 +98,7 @@ func main() {
 	for {
 		select {
 		case <-reloadConfig:
-			cfg, err = config.LoadConfig("config.json")
+			cfg, err = config.LoadConfig(configPath)
 			if err != nil {
 				log.Println("Error reloading config:", err)
 			} else {

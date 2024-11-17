@@ -208,10 +208,10 @@ The configuration file should by default be located at ~/.config/lds/config.json
 - Go to sub directory: Highlight directory and press Enter
 - Open a file in an editor : After highlighting a file, press Enter (highlighting can be done by searching or navigating to Files box and using arrow keys)
 - Backspace: Backspace
-- Rename: Ctrl+Alt+R
-- Move: Ctrl+Alt+M
-- Delete: Ctrl+Alt+D
-- Copy: Ctrl+Alt+C
+- Rename: Alt+r
+- Move: Alt+m
+- Delete: Alt+d
+- Copy: Alt+c
 
 ## Contributing
 
