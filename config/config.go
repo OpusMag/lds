@@ -1,9 +1,14 @@
-package main
+package config
+
+import (
+	"encoding/json"
+	"io/ioutil"
+)
 
 type Config struct {
 	Colors struct {
-		Text      string `json:"white"`
-		Border    string `json:"teal"`
+		Text      string `json:"text"`
+		Border    string `json:"border"`
 		Highlight string `json:"highlight"`
 		Command   string `json:"command"`
 		Blinking  string `json:"blinking"`
@@ -25,6 +30,10 @@ type Config struct {
 		SelectDown  string `json:"selectDown"`
 		Execute     string `json:"execute"`
 		Backspace   string `json:"backspace"`
+		Rename      string `json:"rename"`
+		Move        string `json:"move"`
+		Delete      string `json:"delete"`
+		Copy        string `json:"copy"`
 	} `json:"keyBindings"`
 	Theme  string `json:"theme"`
 	Themes struct {
@@ -63,4 +72,35 @@ type Config struct {
 		File  string `json:"file"`
 	} `json:"logging"`
 	PreferredEditor string `json:"preferredEditor"`
+}
+
+type FileInfo struct {
+	Name           string
+	Permissions    string
+	Owner          string
+	IsExecutable   bool
+	IsSymlink      bool
+	SymlinkTarget  string
+	MountPoint     string
+	SELinuxContext string
+	GitRepoStatus  string
+	LastAccessTime string
+	CreationTime   string
+	Size           int64
+	FileType       string
+	Inode          uint64
+	HardLinksCount uint64
+}
+
+func LoadConfig(filename string) (*Config, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	var config Config
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
