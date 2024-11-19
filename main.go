@@ -30,6 +30,7 @@ func main() {
 		"/usr/lds/config.json",
 		"/usr/local/bin/config.json",
 		"~/.config/lds/config.json",
+		"~/Downloads/lds/config.json",
 	}
 
 	if homeDir, err := os.UserHomeDir(); err == nil {
