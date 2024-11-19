@@ -19,8 +19,13 @@ func OpenFileInEditor(editor, fileName string) {
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
-	os.Exit(0)
+	cmd.Stdin = os.Stdin
+	err := cmd.Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error running editor: %v\n", err)
+	}
+	exec.Command("sh", "-c", "lds").Run()
+
 }
 
 func ReadFileContents(fileName string) (string, error) {

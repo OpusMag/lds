@@ -83,7 +83,7 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 		case tcell.KeyTab:
 			currentBox = (currentBox + 1) % len(ui.Titles)
 		case tcell.KeyUp:
-			if selectedIndices[currentBox] > 0 {
+			if currentBox < len(selectedIndices) && selectedIndices[currentBox] > 0 {
 				selectedIndices[currentBox]--
 				if selectedIndices[currentBox] < scrollPositions[currentBox] {
 					scrollPositions[currentBox]--
@@ -98,7 +98,7 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 			case 2, 3:
 				maxHeight = ui.HalfBoxHeight
 			}
-			if selectedIndices[currentBox] < len(boxes[currentBox])-1 {
+			if currentBox < len(selectedIndices) && selectedIndices[currentBox] < len(boxes[currentBox])-1 {
 				selectedIndices[currentBox]++
 				if selectedIndices[currentBox] >= scrollPositions[currentBox]+maxHeight-3 {
 					scrollPositions[currentBox]++
