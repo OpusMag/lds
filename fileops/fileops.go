@@ -1,12 +1,13 @@
 package fileops
 
 import (
+	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 func OpenFileInEditor(editor, fileName string) {
@@ -23,11 +24,28 @@ func OpenFileInEditor(editor, fileName string) {
 }
 
 func ReadFileContents(fileName string) (string, error) {
-	data, err := ioutil.ReadFile(fileName)
+	file, err := os.Open(fileName)
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	lineCount := 0
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+		lineCount++
+		if lineCount >= 200 {
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return strings.Join(lines, "\n"), nil
 }
 
 func CopyFile(src, dst string) error {

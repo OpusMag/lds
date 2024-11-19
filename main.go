@@ -198,6 +198,7 @@ func main() {
 			}
 
 			// Display file contents in the directory box if a file is highlighted
+			// TODO: Clear the content of the directory box before displaying the file contents
 			if currentBox == 1 && len(boxes[currentBox]) > 0 {
 				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 				fileContents, err := fileops.ReadFileContents(selectedFile.Name)
