@@ -22,7 +22,7 @@ import (
 var wg sync.WaitGroup
 
 func main() {
-	// Find config
+
 	configPaths := []string{
 		"/etc/lds/config.json",
 		"/usr/local/etc/lds/config.json",
@@ -53,21 +53,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Load config
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Setup logging
 	logging.SetupLogging(cfg.Logging.File)
 
-	// Channel to signal config reload
 	reloadConfig := make(chan struct{})
 	go events.WatchConfigFile(configPath, reloadConfig)
 
-	// Initialize tcell screen
 	screen, err := tcell.NewScreen()
 	if err != nil {
 		logging.LogErrorAndExit("Error creating screen", err)
@@ -81,17 +77,14 @@ func main() {
 	// Buffer for user input in the search box
 	var userInput []rune
 
-	// Blinking cursor state
 	cursorVisible := true
 	ticker := time.NewTicker(time.Duration(cfg.AutoSave.Interval) * time.Second)
 	defer ticker.Stop()
 
-	// Variables to track the current box and scroll positions
-	currentBox := 2 // Start with the search box highlighted
+	currentBox := 2 // Start with the search box highlighted so the user can search immediately
 	scrollPositions := []int{0, 0, 0, 0}
 	selectedIndices := []int{0, 0, 0, 0}
 
-	// Read initial directory contents and update the best match
 	query := string(userInput)
 	directories, regularFiles, hiddenFiles, bestMatch := utils.ReadDirectoryAndUpdateBestMatch(screen, query)
 
@@ -103,18 +96,18 @@ func main() {
 			if err != nil {
 				log.Println("Error reloading config:", err)
 			} else {
-				// Apply new config settings
+				log.Println("Config loaded")
 			}
 		case <-ticker.C:
 			cursorVisible = !cursorVisible
 		default:
 			screen.Clear()
 
-			// Get terminal dimensions
+			// Uses the terminal dimensions to dynamically calculate the box dimensions so they scale with window size
 			width, height := screen.Size()
 			boxWidth, boxHeight, halfBoxHeight, increasedBoxHeight := ui.CalculateBoxDimensions(width, height)
 
-			// Define styles using config colors
+			// Don't change these here, change the colors in the config file
 			textStyle := tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Text))
 			borderStyle := tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Border))
 			highlightStyle := tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Highlight)).Bold(true)
@@ -124,13 +117,11 @@ func main() {
 			valueStyle := tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Value)).Bold(true)
 			focusedStyle := tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Focused)).Bold(true)
 
-			// Draw borders for the boxes
 			ui.DrawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, borderStyle)                                    // Directories
 			ui.DrawBorder(screen, boxWidth, 0, width-1, increasedBoxHeight-1, borderStyle)                                // Files
 			ui.DrawBorder(screen, 0, increasedBoxHeight, boxWidth-1, increasedBoxHeight+halfBoxHeight-1, borderStyle)     // Search
 			ui.DrawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, borderStyle) // File Info
 
-			// Display titles for the boxes
 			titles := []string{"Directories", "Files", "Search", "File Info"}
 			for i, title := range titles {
 				var x, y int
@@ -149,17 +140,13 @@ func main() {
 				}
 			}
 
-			// Convert user input to string
 			inputStr := string(userInput)
 
-			// Filter file lists based on user input
 			filteredDirectories := utils.FilterFiles(directories, inputStr)
 			filteredFiles := utils.FilterFiles(append(regularFiles, hiddenFiles...), inputStr)
 
-			// Find the best match
 			bestMatch = utils.FindBestMatch(filteredDirectories, filteredFiles, nil, inputStr)
 
-			// Display file names in the directories and files boxes
 			boxes := [][]config.FileInfo{filteredDirectories, filteredFiles, nil}
 			for i, box := range boxes {
 				var x, y, boxHeight int
@@ -190,7 +177,6 @@ func main() {
 				}
 			}
 
-			// Display detailed file information in the file info box
 			if (currentBox == 0 || currentBox == 1) && len(boxes[currentBox]) > 0 {
 				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 				ui.DisplayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, selectedFile, labelStyle, valueStyle)
@@ -198,19 +184,19 @@ func main() {
 				ui.DisplayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, *bestMatch, labelStyle, valueStyle)
 			}
 
-			// Display file contents in the directory box if a file is highlighted
 			// TODO: Clear the content of the directory box before displaying the file contents
+			// For now, the file contents are displayed on top of the directories listed in the directory box
 			if currentBox == 1 && len(boxes[currentBox]) > 0 {
 				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 				fileContents, err := fileops.ReadFileContents(selectedFile.Name)
 				if err == nil {
 					lines := strings.Split(fileContents, "\n")
 					for i, line := range lines {
-						if i >= increasedBoxHeight-2 { // Adjust to fit within the box
+						if i >= increasedBoxHeight-2 {
 							break
 						}
 						for j, r := range line {
-							if j >= boxWidth-4 { // Adjust to fit within the box
+							if j >= boxWidth-4 {
 								break
 							}
 							screen.SetContent(2+j, 1+i, r, nil, textStyle)
@@ -219,7 +205,6 @@ func main() {
 				}
 			}
 
-			// Define the ASCII art
 			asciiArt := `
             ___     _____   _____ 
             | |    |  __ \ / ____| 
@@ -228,7 +213,6 @@ func main() {
             | |___ | |__| |____) | 
             |_____||_____/|_____/ `
 
-			// Calculate the starting position for the ASCII art
 			asciiArtLines := strings.Split(asciiArt, "\n")
 			asciiArtHeight := len(asciiArtLines)
 			asciiArtWidth := 0
@@ -238,31 +222,29 @@ func main() {
 				}
 			}
 
-			// Calculate the position for the ASCII art
-			asciiHeight := 8 // One-fourth of the description window height
+			asciiHeight := 8
 			asciiBoxYEnd := boxHeight
 			asciiBoxYStart := asciiBoxYEnd - asciiHeight
-			asciiArtX := boxWidth + boxWidth - asciiArtWidth + 0 // Adjusted to place it on the right side
-			asciiArtY := asciiBoxYStart - asciiArtHeight + 25    // Adjusted to move it further down
+			asciiArtX := boxWidth + boxWidth - asciiArtWidth + 0
+			asciiArtY := asciiBoxYStart - asciiArtHeight + 25
 
-			// Render the ASCII art in the background
+			// Displays the ASCII art in the background so it doesn't overlap with other content
 			for y, line := range asciiArtLines {
 				for x, r := range line {
 					screen.SetContent(asciiArtX+x, asciiArtY+y, r, nil, borderStyle)
 				}
 			}
 
-			// Display user input in the search box
+			// Ensures user input is displayed in the search box
 			for i, r := range userInput {
 				screen.SetContent(1+i, increasedBoxHeight+1, r, nil, textStyle)
 			}
 
-			// Display blinking cursor in the search box if it is highlighted
 			if currentBox == 2 && cursorVisible {
 				screen.SetContent(1+len(userInput), increasedBoxHeight+1, '_', nil, blinkingStyle)
 			}
 
-			// Highlight the selected box
+			// Highlight the selected box to make it clear which box is currently selected
 			switch currentBox {
 			case 0:
 				ui.DrawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, focusedStyle)
@@ -276,7 +258,6 @@ func main() {
 
 			screen.Show()
 
-			// Handle user input
 			currentBox, userInput, selectedIndices, scrollPositions, bestMatch = events.HandleUserInput(screen, cfg, currentBox, userInput, boxes, selectedIndices, scrollPositions, bestMatch)
 			if currentBox == -1 {
 				return
