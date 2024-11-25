@@ -58,17 +58,15 @@ func DrawPrompt(screen tcell.Screen, prompt string) {
 	x2 := x1 + boxWidth - 1
 	y2 := y1 + boxHeight - 1
 
-	// Draw the border for the prompt box
 	DrawBorder(screen, x1, y1, x2, y2, tcell.StyleDefault.Foreground(tcell.ColorWhite))
 
-	// Draw the prompt text inside the box
 	DrawText(screen, x1+2, y1+2, prompt)
 
 	screen.Show()
 }
 
 func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileInfo, labelStyle, valueStyle tcell.Style) {
-	// Define labels and values for the first column
+
 	labelsColumn1 := []string{
 		"Name: ", "Owner: ", "User permissions: ", "Group permissions: ", "Others permissions: ", "File Type: ", "Size: ", "Last Access: ", "Creation Time: ",
 	}
@@ -76,7 +74,6 @@ func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileIn
 		file.Name, file.Owner, file.Permissions[1:4], file.Permissions[4:7], file.Permissions[7:10], file.FileType, fmt.Sprintf("%d bytes", file.Size), file.LastAccessTime, file.CreationTime,
 	}
 
-	// Define labels and values for the second column
 	labelsColumn2 := []string{
 		"Executable: ", "Git: ", "Mount: ", "Hard Links: ", "Inode: ", "Symlink: ", "Symlink Target: ",
 	}
@@ -84,33 +81,29 @@ func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileIn
 		strings.ToUpper(fmt.Sprint(file.IsExecutable)), file.GitRepoStatus, file.MountPoint, fmt.Sprintf("%d", file.HardLinksCount), fmt.Sprintf("%d", file.Inode), fmt.Sprintf("%t", file.IsSymlink), file.SymlinkTarget,
 	}
 
-	// Calculate the number of lines available in the file info box
 	width, height := screen.Size()
 	boxWidth := width / 2
 	boxHeight := height / 2
 
-	// Display labels and values in two columns
+	// Displays labels and values in two columns because there wasn't space in one
 	columnWidth := boxWidth / 2
 
-	// Display first column
 	for i, label := range labelsColumn1 {
 		labelX := x
 		valueX := x + len(label) + 1
 		row := y + i
 
-		// Wrap text if it exceeds the box height
+		// Wraps text so it doesn't spill beyond box height
 		if row >= y+boxHeight {
 			break
 		}
 
-		// Display label
 		for j, r := range label {
 			if labelX+j < maxWidth {
 				screen.SetContent(labelX+j, row, r, nil, labelStyle)
 			}
 		}
 
-		// Display value
 		value := valuesColumn1[i]
 		for j, r := range value {
 			if valueX+j < maxWidth {
@@ -119,25 +112,22 @@ func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileIn
 		}
 	}
 
-	// Display second column
 	for i, label := range labelsColumn2 {
 		labelX := x + columnWidth
 		valueX := labelX + len(label) + 1
 		row := y + i
 
-		// Wrap text if it exceeds the box height
+		// Wraps text so it doesn't spill beyond box height
 		if row >= y+boxHeight {
 			break
 		}
 
-		// Display label
 		for j, r := range label {
 			if labelX+j < maxWidth {
 				screen.SetContent(labelX+j, row, r, nil, labelStyle)
 			}
 		}
 
-		// Display value
 		value := valuesColumn2[i]
 		for j, r := range value {
 			if valueX+j < maxWidth {

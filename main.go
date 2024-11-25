@@ -1,5 +1,7 @@
 package main
 
+/* reading the code explains the code */
+
 import (
 	"fmt"
 	"log"
