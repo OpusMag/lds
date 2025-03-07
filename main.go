@@ -90,7 +90,6 @@ func main() {
 	query := string(userInput)
 	directories, regularFiles, hiddenFiles, bestMatch := utils.ReadDirectoryAndUpdateBestMatch(screen, query)
 
-	// Main loop
 	for {
 		select {
 		case <-reloadConfig:
