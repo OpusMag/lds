@@ -13,6 +13,28 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+type WindowsNavigator struct {
+	executablePath string
+	workingDir     string
+}
+
+func NewWindowsNavigator() (*WindowsNavigator, error) {
+	execPath, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine executable path: %w", err)
+	}
+
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	return &WindowsNavigator{
+		executablePath: execPath,
+		workingDir:     workingDir,
+	}, nil
+}
+
 func ChangeDirectoryAndRerun(directory string, up bool) {
 	var targetDir string
 
