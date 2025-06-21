@@ -8,16 +8,32 @@ import (
 	"lds/logging"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/gdamore/tcell/v2"
 )
 
-func ChangeDirectoryAndRerunWin(directory string, up bool) {
-	var cmd *exec.Cmd = exec.Command("cmd.exe", "/C", fmt.Sprintf("cd %s && lds", directory))
+func ChangeDirectoryAndRerun(directory string, up bool) {
+	var targetDir string
+
+	if up {
+		targetDir = ".."
+	} else {
+		targetDir = filepath.Clean(directory)
+	}
+
+	cmdStr := fmt.Sprintf(`cd /d "%s" && lds`, targetDir)
+	cmd := exec.Command("cmd.exe", "/C", cmdStr)
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to change directory: %v\n", err)
+		os.Exit(1)
+	}
+
 	os.Exit(0)
 }
 
@@ -35,15 +51,11 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]confi
 			continue
 		}
 
-		var permissions, owner string
 		var isExecutable, isSymlink bool
 		var symlinkTarget, gitRepoStatus, lastAccessTime, creationTime string
 		var size int64
 		var fileType string
-		var inode, hardLinksCount uint64
 
-		permissions = "N/A"
-		owner = "N/A"
 		isExecutable = false
 		isSymlink = false
 		symlinkTarget = "N/A"
@@ -52,13 +64,9 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]confi
 		creationTime = GetLastModified(info.ModTime())
 		size = info.Size()
 		fileType = GetFileType(info)
-		inode = 0
-		hardLinksCount = 0
 
 		fileInfo := config.FileInfo{
 			Name:           info.Name(),
-			Permissions:    permissions,
-			Owner:          owner,
 			IsExecutable:   isExecutable,
 			IsSymlink:      isSymlink,
 			SymlinkTarget:  symlinkTarget,
@@ -67,8 +75,6 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]confi
 			CreationTime:   creationTime,
 			Size:           size,
 			FileType:       fileType,
-			Inode:          inode,
-			HardLinksCount: hardLinksCount,
 		}
 
 		if info.IsDir() {
