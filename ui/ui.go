@@ -1,9 +1,7 @@
 package ui
 
 import (
-	"fmt"
 	"lds/config"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -66,73 +64,56 @@ func DrawPrompt(screen tcell.Screen, prompt string) {
 }
 
 func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileInfo, labelStyle, valueStyle tcell.Style) {
-
-	labelsColumn1 := []string{
-		"Name: ", "Owner: ", "User permissions: ", "Group permissions: ", "Others permissions: ", "File Type: ", "Size: ", "Last Access: ", "Creation Time: ",
-	}
-	valuesColumn1 := []string{
-		file.Name, file.Owner, file.Permissions[1:4], file.Permissions[4:7], file.Permissions[7:10], file.FileType, fmt.Sprintf("%d bytes", file.Size), file.LastAccessTime, file.CreationTime,
+	if screen == nil {
+		return
 	}
 
-	labelsColumn2 := []string{
-		"Executable: ", "Git: ", "Mount: ", "Hard Links: ", "Inode: ", "Symlink: ", "Symlink Target: ",
+	screenWidth, screenHeight := screen.Size()
+
+	if x >= screenWidth || y >= screenHeight || x < 0 || y < 0 {
+		return
 	}
-	valuesColumn2 := []string{
-		strings.ToUpper(fmt.Sprint(file.IsExecutable)), file.GitRepoStatus, file.MountPoint, fmt.Sprintf("%d", file.HardLinksCount), fmt.Sprintf("%d", file.Inode), fmt.Sprintf("%t", file.IsSymlink), file.SymlinkTarget,
+
+	if maxWidth > screenWidth-x {
+		maxWidth = screenWidth - x
 	}
 
-	width, height := screen.Size()
-	boxWidth := width / 2
-	boxHeight := height / 2
+	infoItems := []struct {
+		label string
+		value string
+	}{
+		{"Name:", file.Name},
+		{"Size:", formatFileSize(file.Size)},
+		{"Type:", file.FileType},
+		{"Permissions:", file.Permissions},
+		{"Owner:", file.Owner},
+		{"Last Modified:", file.LastAccessTime},
+		{"Git Status:", file.GitRepoStatus},
+	}
 
-	// Displays labels and values in two columns because there wasn't space in one
-	columnWidth := boxWidth / 2
+	currentY := y
+	maxDisplayHeight := screenHeight - y - 1
 
-	for i, label := range labelsColumn1 {
-		labelX := x
-		valueX := x + len(label) + 1
-		row := y + i
-
-		// Wraps text so it doesn't spill beyond box height
-		if row >= y+boxHeight {
+	for i, item := range infoItems {
+		if i >= maxDisplayHeight {
 			break
 		}
 
-		for j, r := range label {
-			if labelX+j < maxWidth {
-				screen.SetContent(labelX+j, row, r, nil, labelStyle)
-			}
+		labelWidth := len(item.label) + 1
+		valueWidth := maxWidth - labelWidth
+
+		if valueWidth <= 0 {
+			continue
 		}
 
-		value := valuesColumn1[i]
-		for j, r := range value {
-			if valueX+j < maxWidth {
-				screen.SetContent(valueX+j, row, r, nil, valueStyle)
-			}
-		}
-	}
+		displayText(screen, x, currentY, item.label+" ", labelStyle, maxWidth)
 
-	for i, label := range labelsColumn2 {
-		labelX := x + columnWidth
-		valueX := labelX + len(label) + 1
-		row := y + i
-
-		// Wraps text so it doesn't spill beyond box height
-		if row >= y+boxHeight {
-			break
+		displayValue := item.value
+		if len(displayValue) > valueWidth {
+			displayValue = truncateString(displayValue, valueWidth-3) + "..."
 		}
 
-		for j, r := range label {
-			if labelX+j < maxWidth {
-				screen.SetContent(labelX+j, row, r, nil, labelStyle)
-			}
-		}
-
-		value := valuesColumn2[i]
-		for j, r := range value {
-			if valueX+j < maxWidth {
-				screen.SetContent(valueX+j, row, r, nil, valueStyle)
-			}
-		}
+		displayText(screen, x+labelWidth, currentY, displayValue, valueStyle, valueWidth)
+		currentY++
 	}
 }
