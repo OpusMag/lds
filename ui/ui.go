@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"lds/config"
 
 	"github.com/gdamore/tcell/v2"
@@ -61,6 +62,55 @@ func DrawPrompt(screen tcell.Screen, prompt string) {
 	DrawText(screen, x1+2, y1+2, prompt)
 
 	screen.Show()
+}
+
+func displayText(screen tcell.Screen, startX, y int, text string, style tcell.Style, maxWidth int) {
+	screenWidth, screenHeight := screen.Size()
+
+	if y >= screenHeight || startX >= screenWidth {
+		return
+	}
+
+	for i, r := range text {
+		x := startX + i
+		if x >= screenWidth || i >= maxWidth {
+			break
+		}
+		screen.SetContent(x, y, r, nil, style)
+	}
+}
+
+func truncateString(s string, maxLen int) string {
+	if maxLen <= 0 {
+		return ""
+	}
+
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+
+	return string(runes[:maxLen])
+}
+
+func formatFileSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	units := []string{"KB", "MB", "GB", "TB", "PB"}
+	if exp >= len(units) {
+		exp = len(units) - 1
+	}
+
+	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
 
 func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileInfo, labelStyle, valueStyle tcell.Style) {
