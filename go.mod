@@ -1,7 +1,7 @@
 module lds
 
 // switch this to 1.18 to work with Ubuntu's outdated package (or update Go)
-go 1.22.0
+go 1.24.0
 
 require (
 	github.com/fsnotify/fsnotify v1.5.1

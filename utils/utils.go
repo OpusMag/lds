@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"lds/config"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -54,15 +53,6 @@ func GetLastModified(modTime time.Time) string {
 	} else {
 		return fmt.Sprintf("%d years ago", int(duration.Hours()/(24*365)))
 	}
-}
-
-func ChangeDirectoryAndRerun(directory string, up bool) {
-	var cmd *exec.Cmd = exec.Command("cmd.exe", "/C", fmt.Sprintf("cd %s && lds", directory))
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Run()
-	os.Exit(0)
 }
 
 type FileSystemProvider interface {
