@@ -89,7 +89,7 @@ func main() {
 
 			// Uses the terminal dimensions to dynamically calculate the box dimensions so they scale with window size
 			width, height := screen.Size()
-			boxWidth, boxHeight, halfBoxHeight, increasedBoxHeight := ui.CalculateBoxDimensions(width, height)
+			boxWidth, _, halfBoxHeight, increasedBoxHeight := ui.CalculateBoxDimensions(width, height)
 
 			// Don't change these here, change the colors in the config file
 			textStyle := tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Text))
@@ -190,15 +190,14 @@ func main() {
 			}
 
 			asciiArt := `
-            ___     _____   _____ 
-            | |    |  __ \ / ____| 
-            | |    | |  | || (___  
-            | |    | |  | |\___  \ 
-            | |___ | |__| |____) | 
-            |_____||_____/|_____/ `
+___     _____   _____ 
+| |    |  __ \ / ____| 
+| |    | |  | || (___  
+| |    | |  | |\___  \ 
+| |___ | |__| |____) | 
+|_____||_____/|_____/ `
 
 			asciiArtLines := strings.Split(asciiArt, "\n")
-			asciiArtHeight := len(asciiArtLines)
 			asciiArtWidth := 0
 			for _, line := range asciiArtLines {
 				if len(line) > asciiArtWidth {
@@ -207,15 +206,15 @@ func main() {
 			}
 
 			asciiHeight := 8
-			asciiBoxYEnd := boxHeight
-			asciiBoxYStart := asciiBoxYEnd - asciiHeight
-			asciiArtX := boxWidth + boxWidth - asciiArtWidth + 0
-			asciiArtY := asciiBoxYStart - asciiArtHeight + 25
+			asciiArtX := width - asciiArtWidth - 1
+			asciiArtY := asciiHeight - 8
 
 			// Displays the ASCII art in the background so it doesn't overlap with other content
 			for y, line := range asciiArtLines {
 				for x, r := range line {
-					screen.SetContent(asciiArtX+x, asciiArtY+y, r, nil, borderStyle)
+					if asciiArtX+x >= 0 && asciiArtX+x < width && asciiArtY+y >= 0 && asciiArtY+y < height {
+						screen.SetContent(asciiArtX+x, asciiArtY+y, r, nil, borderStyle)
+					}
 				}
 			}
 
