@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -25,33 +24,17 @@ var wg sync.WaitGroup
 
 func main() {
 
-	configPaths := []string{
-		"/etc/lds/config.json",
-		"/usr/local/etc/lds/config.json",
-		"/usr/local/lds/config.json",
-		"/usr/lds/config.json",
-		"/usr/local/bin/config.json",
-		"~/.config/lds/config.json",
-		"~/Downloads/lds/config.json",
-	}
-
-	if homeDir, err := os.UserHomeDir(); err == nil {
-		configPaths = append(configPaths, filepath.Join(homeDir, ".lds", "config.json"))
-	}
-	configPaths = append(configPaths, "config.json")
-
-	var configPath string
-	for _, path := range configPaths {
-		if _, err := os.Stat(path); err == nil {
-			configPath = path
-			break
+	configPath, err := config.FindConfigFile()
+	if err != nil {
+		if configErr, ok := err.(*config.ConfigError); ok {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", configErr.Message)
+			fmt.Fprintf(os.Stderr, "Searched in the following locations:\n")
+			for _, path := range configErr.Paths {
+				fmt.Fprintf(os.Stderr, "  - %s\n", path)
+			}
 		} else {
-			fmt.Printf("Config file not found at: %s\n", path)
+			fmt.Fprintf(os.Stderr, "Error finding config: %v\n", err)
 		}
-	}
-
-	if configPath == "" {
-		fmt.Fprintf(os.Stderr, "Error: config file not found in any of the standard locations\n")
 		os.Exit(1)
 	}
 
