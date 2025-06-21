@@ -4,29 +4,39 @@ package utils
 
 import (
 	"fmt"
+	"lds/config"
+	"lds/logging"
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
-	"lds/config"
-	"lds/logging"
-
 	"github.com/gdamore/tcell/v2"
 )
 
-func ChangeDirectoryAndRerunUnix(directory string, up bool) {
-	var cmd *exec.Cmd
-	if !up {
-		cmd = exec.Command("sh", "-c", fmt.Sprintf("cd %s && lds", directory))
-	} else if up {
-		cmd = exec.Command("sh", "-c", fmt.Sprintf("cd .. %s && lds", directory))
+func ChangeDirectoryAndRerun(directory string, up bool) {
+	var cmdStr string
+
+	if up {
+		cmdStr = "cd .. && lds"
+	} else {
+		cleanDir := filepath.Clean(directory)
+		cmdStr = fmt.Sprintf("cd %q && lds", cleanDir)
 	}
+
+	cmd := exec.Command("sh", "-c", cmdStr)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to change directory: %v\n", err)
+		os.Exit(1)
+	}
+
 	os.Exit(0)
 }
 
@@ -59,17 +69,13 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]confi
 			continue
 		}
 
-		// Extract Unix-specific file information using helper functions
 		lastAccessTime, creationTime, size, fileType, inode, hardLinksCount := extractFileInfo(info)
 
-		// Get ownership information
 		stat := info.Sys().(*syscall.Stat_t)
 		owner := getOwnerInfo(stat)
 
-		// Get symlink status
 		isSymlink, symlinkTarget := getSymlinkStatus(file)
 
-		// Check if file is executable
 		isExecutable := info.Mode()&0111 != 0
 
 		fileInfo := config.FileInfo{
@@ -97,7 +103,6 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]confi
 		}
 	}
 
-	// Use common filtering functions
 	filteredDirectories := FilterFiles(directories, query)
 	filteredFiles := FilterFiles(regularFiles, query)
 	bestMatch := FindBestMatch(filteredDirectories, filteredFiles, nil, query)
@@ -138,7 +143,6 @@ func getSymlinkStatus(file os.DirEntry) (bool, string) {
 	return false, ""
 }
 
-// Get the mount point of the file
 func getMountPoint(info os.FileInfo) string {
 	cmd := exec.Command("findmnt", "-n", "-o", "TARGET", "--target", info.Name())
 	output, err := cmd.Output()
