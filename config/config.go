@@ -3,6 +3,9 @@ package config
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"runtime"
 )
 
 type Config struct {
@@ -90,6 +93,85 @@ type FileInfo struct {
 	FileType       string
 	Inode          uint64
 	HardLinksCount uint64
+}
+
+func ConfigLocations() []string {
+	var paths []string
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = ""
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			paths = append(paths, filepath.Join(appData, "lds", "config.json"))
+		}
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			paths = append(paths, filepath.Join(localAppData, "lds", "config.json"))
+		}
+		if homeDir != "" {
+			paths = append(paths, filepath.Join(homeDir, ".lds", "config.json"))
+		}
+
+	default:
+		paths = []string{
+			"/etc/lds/config.json",
+			"/usr/local/etc/lds/config.json",
+			"/usr/local/lds/config.json",
+			"/usr/lds/config.json",
+			"/usr/local/bin/config.json",
+		}
+
+		if homeDir != "" {
+			paths = append(paths,
+				filepath.Join(homeDir, ".config", "lds", "config.json"),
+				filepath.Join(homeDir, ".lds", "config.json"),
+			)
+		}
+	}
+
+	paths = append(paths, "config.json")
+
+	return paths
+}
+
+func FindConfigFile() (string, error) {
+	for _, path := range ConfigLocations() {
+		if expandedPath, err := expandPath(path); err == nil {
+			if _, err := os.Stat(expandedPath); err == nil {
+				return expandedPath, nil
+			}
+		}
+	}
+
+	return "", &ConfigError{
+		Message: "config file not found in any standard location",
+		Paths:   ConfigLocations(),
+	}
+}
+
+func expandPath(path string) (string, error) {
+	if len(path) == 0 || path[0] != '~' {
+		return path, nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(homeDir, path[1:]), nil
+}
+
+type ConfigError struct {
+	Message string
+	Paths   []string
+}
+
+func (e *ConfigError) Error() string {
+	return e.Message
 }
 
 func LoadConfig(filename string) (*Config, error) {
