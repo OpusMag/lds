@@ -62,20 +62,17 @@ func CalculateBoxDimensions(width, height int) (int, int, int, int) {
 	return boxWidth, boxHeight, HalfBoxHeight, IncreasedBoxHeight
 }
 
-// DrawBox draws a file list within a given box area.
-// It accepts the file slice, a selected index, and current scroll position,
-// along with text styles and a flag indicating focus.
 func DrawBox(screen tcell.Screen, x, y, width, height int, files []config.FileInfo, selectedIndex int, scrollPosition int, textStyle, highlightStyle tcell.Style, isFocused bool) {
-	maxLines := height - 2 // Leave room for padding
+	maxLines := height - 2
 	for i := scrollPosition; i < len(files) && i < scrollPosition+maxLines; i++ {
 		file := files[i]
 		style := textStyle
 		if isFocused && i == selectedIndex {
 			style = highlightStyle
 		}
-		lineY := y + (i - scrollPosition) + 1 // +1 for top padding
+		lineY := y + (i - scrollPosition) + 1
 		for j, r := range file.Name {
-			if x+3+j >= x+width { // 3 columns margin
+			if x+3+j >= x+width {
 				break
 			}
 			screen.SetContent(x+3+j, lineY, r, nil, style)
@@ -83,10 +80,7 @@ func DrawBox(screen tcell.Screen, x, y, width, height int, files []config.FileIn
 	}
 }
 
-// DrawTitles draws the four titles for the UI boxes.
-// It uses the terminal dimensions to calculate the positions.
 func DrawTitles(screen tcell.Screen, x, y, width, height int, unused string, style tcell.Style) {
-	// Use pre-calculated box dimensions for positioning titles.
 	boxWidth, _, _, increasedBoxHeight := CalculateBoxDimensions(width, height)
 	titles := []string{"Directories", "Files", "Search", "File Info"}
 
@@ -114,7 +108,6 @@ func DrawText(screen tcell.Screen, x, y int, text string) {
 	}
 }
 
-// DrawFileContents reads and displays the contents of a file inside a region.
 func DrawFileContents(screen tcell.Screen, x, y int, file config.FileInfo, style tcell.Style) {
 	fileContents, err := fileops.ReadFileContents(file.Name)
 	if err != nil {
@@ -152,7 +145,6 @@ func DrawPrompt(screen tcell.Screen, prompt string) {
 	screen.Show()
 }
 
-// DrawASCIIArt calculates a dynamic position (centered in lower right) and renders the ASCII art.
 func DrawASCIIArt(screen tcell.Screen) {
 	cfg, err := GetConfig()
 	if err != nil {
@@ -175,7 +167,6 @@ ___     _____   _____
 			maxWidth = len(line)
 		}
 	}
-	// Dynamically center the art near the bottom-right of the terminal.
 	asciiArtX := width - maxWidth - 2
 	asciiArtY := height - len(asciiArtLines) - 2
 

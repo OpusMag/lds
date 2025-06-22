@@ -106,19 +106,21 @@ func main() {
 			ui.DrawBox(screen, 0, 0, boxWidth, increasedBoxHeight, filteredDirectories, selectedIndices[0], scrollPositions[0], textStyle, highlightStyle, currentBox == 0)
 			ui.DrawBox(screen, boxWidth, 0, width-boxWidth, increasedBoxHeight, filteredFiles, selectedIndices[1], scrollPositions[1], textStyle, highlightStyle, currentBox == 1)
 
-			// Draw File Info (if a file is selected in Directories or Files)
-			boxes := [][]config.FileInfo{filteredDirectories, filteredFiles, nil}
-			if (currentBox == 0 || currentBox == 1) && len(boxes[currentBox]) > 0 {
-				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
+			// Draw File Contents or File Info depending on selection:
+			// When a file is highlighted in the Files box, draw its contents in the Directories box area.
+			if currentBox == 1 && len(filteredFiles) > 0 {
+				selectedFile := filteredFiles[selectedIndices[1]]
+				ui.DrawFileContents(screen, 0, 0, selectedFile, textStyle)
+			} else if currentBox == 0 && len(filteredDirectories) > 0 {
+				// For a directory selection, keep showing file info as before.
+				selectedFile := filteredDirectories[selectedIndices[0]]
 				ui.DisplayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, selectedFile, labelStyle, valueStyle)
 			} else if currentBox == 2 && bestMatch != nil {
 				ui.DisplayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, *bestMatch, labelStyle, valueStyle)
 			}
 
-			// Draw ASCII art in a dynamic position (centered in lower right quadrant)
 			ui.DrawASCIIArt(screen)
 
-			// Draw user input in the search box
 			for i, r := range userInput {
 				screen.SetContent(1+i, increasedBoxHeight+1, r, nil, textStyle)
 			}
@@ -126,7 +128,6 @@ func main() {
 				screen.SetContent(1+len(userInput), increasedBoxHeight+1, '_', nil, blinkingStyle)
 			}
 
-			// Highlight the active box
 			switch currentBox {
 			case 0:
 				ui.DrawBorder(screen, 0, 0, boxWidth-1, increasedBoxHeight-1, focusedStyle)
@@ -139,7 +140,6 @@ func main() {
 			}
 
 			screen.Show()
-			// Delegate event handling and state updates
 			currentBox, userInput, selectedIndices, scrollPositions, bestMatch =
 				events.HandleUserInput(screen, cfg, currentBox, userInput, [][]config.FileInfo{filteredDirectories, filteredFiles, nil}, selectedIndices, scrollPositions, bestMatch)
 			if currentBox == -1 {
