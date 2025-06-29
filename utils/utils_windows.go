@@ -44,9 +44,20 @@ func ChangeDirectoryAndRerun(directory string, up bool) {
 		targetDir = filepath.Clean(directory)
 	}
 
-	cmdStr := fmt.Sprintf(`cd /d "%s" && lds`, targetDir)
-	cmd := exec.Command("cmd.exe", "/C", cmdStr)
+	absTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to resolve directory: %v\n", err)
+		os.Exit(1)
+	}
 
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get executable path: %v\n", err)
+		os.Exit(1)
+	}
+
+	cmd := exec.Command(execPath)
+	cmd.Dir = absTargetDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

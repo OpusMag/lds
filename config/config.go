@@ -105,6 +105,10 @@ func ConfigLocations() []string {
 
 	switch runtime.GOOS {
 	case "windows":
+		if execPath, err := os.Executable(); err == nil {
+			execDir := filepath.Dir(execPath)
+			paths = append(paths, filepath.Join(execDir, "config.json"))
+		}
 		if appData := os.Getenv("APPDATA"); appData != "" {
 			paths = append(paths, filepath.Join(appData, "lds", "config.json"))
 		}
