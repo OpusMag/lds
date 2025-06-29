@@ -16,6 +16,7 @@
 
 # Envs and the like
 .github
+.github/copilot-instructions.md
 
 # Go workspace file
 go.work
@@ -23,3 +24,8 @@ go.work.sum
 
 # env file
 .env
+
+# binaries
+lds
+lds.exe
+
