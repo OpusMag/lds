@@ -50,7 +50,13 @@ func ChangeDirectoryAndRerun(directory string, up bool) {
 		os.Exit(1)
 	}
 
-	cmd := exec.Command("lds")
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get executable path: %v\n", err)
+		os.Exit(1)
+	}
+
+	cmd := exec.Command(execPath)
 	cmd.Dir = absTargetDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

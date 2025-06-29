@@ -124,6 +124,13 @@ Option B: Build from source
    go build -o lds.exe main.go
    ```
 
+### Create a directory for config and copy the config to it
+
+You need to create a directory for the config file and copy the config file to it (or make your own).
+
+```mkdir "C:\Users\YOURUSERNAME\AppData\Local\lds"
+copy "C:\Users\YOURUSERNAME\Downloads\lds\config.json" "C:\Users\YOURUSERNAME\AppData\Local\lds\config.json"```
+
 ### macOS
 
 #### Dependencies
