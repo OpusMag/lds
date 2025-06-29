@@ -108,20 +108,22 @@ func DrawText(screen tcell.Screen, x, y int, text string) {
 	}
 }
 
-func DrawFileContents(screen tcell.Screen, x, y int, file config.FileInfo, style tcell.Style) {
+func DrawFileContents(screen tcell.Screen, x, y, boxWidth, boxHeight int, file config.FileInfo, style tcell.Style) {
 	fileContents, err := fileops.ReadFileContents(file.Name)
 	if err != nil {
-		displayText(screen, x, y, fmt.Sprintf("Error reading file: %v", err), style, 80)
+		displayText(screen, x+1, y+1, fmt.Sprintf("Error reading file: %v", err), style, boxWidth-3)
 		return
 	}
-	width, height := screen.Size()
 	lines := strings.Split(fileContents, "\n")
-	maxLines := height - y - 1
+	contentX := x + 1
+	contentWidth := boxWidth - 3
+	maxLines := boxHeight - 2
+
 	for i, line := range lines {
 		if i >= maxLines {
 			break
 		}
-		displayText(screen, x, y+i, line, style, width-x-1)
+		displayText(screen, contentX, y+1+i, line, style, contentWidth)
 	}
 }
 
