@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"lds/config"
 	"lds/fileops"
-	"os"
 	"strings"
-
+	"os"
 	"github.com/gdamore/tcell/v2"
 )
 
 var (
-	Titles             = []string{"Directories", "Files", "Search", "File Info"}
+	Titles             = []string{"Directories", "Files", "Search"}
 	IncreasedBoxHeight int
 	HalfBoxHeight      int
 )
@@ -147,14 +146,8 @@ func DrawPrompt(screen tcell.Screen, prompt string) {
 	screen.Show()
 }
 
-func DrawASCIIArt(screen tcell.Screen) {
-	cfg, err := GetConfig()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-		return
-	}
+func DrawASCIIArt(screen tcell.Screen, borderStyle tcell.Style) {
 	width, height := screen.Size()
-	borderStyle := tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Border))
 	asciiArt := `
 ___     _____   _____ 
 | |    |  __ \ / ____| 
@@ -264,5 +257,16 @@ func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileIn
 		}
 		displayText(screen, x+labelWidth, currentY, displayValue, valueStyle, valueWidth)
 		currentY++
+	}
+}
+
+func DrawStatusBar(screen tcell.Screen, width, height int, style tcell.Style) {
+	msg := "Tab: next box • Shift+Tab: parent dir • Enter: open/go into • ↑/↓: navigate • Ctrl+U: clear search"
+	y := height - 1
+	for i, r := range msg {
+		if 1+i >= width {
+			break
+		}
+		screen.SetContent(1+i, y, r, nil, style)
 	}
 }
