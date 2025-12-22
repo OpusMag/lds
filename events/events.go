@@ -73,15 +73,12 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 		switch ev.Key() {
 		case tcell.KeyCtrlC:
 			return -1, userInput, selectedIndices, scrollPositions, bestMatch
-		case tcell.KeyEscape:
-			if currentBox == 0 && len(boxes[currentBox]) > 0 { // Directory box
-				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
-				up := true
-				screen.Fini()
-				utils.ChangeDirectoryAndRerun(selectedFile.Name, up)
-			}
 		case tcell.KeyTab:
 			currentBox = (currentBox + 1) % len(ui.Titles)
+		case tcell.KeyBacktab:
+			screen.Fini()
+			utils.ChangeDirectoryAndRerun("", true)
+			return -1, userInput, selectedIndices, scrollPositions, bestMatch
 		case tcell.KeyUp:
 			if currentBox < len(selectedIndices) && selectedIndices[currentBox] > 0 {
 				selectedIndices[currentBox]--
@@ -90,7 +87,6 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 				}
 			}
 		case tcell.KeyDown:
-			// Define maxHeight based on the current box
 			var maxHeight int
 			switch currentBox {
 			case 0, 1:
@@ -106,10 +102,24 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 			}
 		case tcell.KeyEnter:
 			if currentBox == 2 && bestMatch != nil { // Search box
-				fileops.OpenFileInEditor(cfg.PreferredEditor, bestMatch.Name)
+				if bestMatch.FileType == "Directory" {
+					screen.Fini()
+					utils.ChangeDirectoryAndRerun(bestMatch.Name, false)
+				} else {
+					screen.Fini()
+					fileops.OpenFileInEditor(cfg.PreferredEditor, bestMatch.Name)
+					_ = screen.Init()
+				}
 			} else if currentBox == 1 && len(boxes[currentBox]) > 0 { // File box
 				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
-				fileops.OpenFileInEditor(cfg.PreferredEditor, selectedFile.Name)
+				if selectedFile.FileType == "Directory" {
+					screen.Fini()
+					utils.ChangeDirectoryAndRerun(selectedFile.Name, false)
+				} else {
+					screen.Fini()
+					fileops.OpenFileInEditor(cfg.PreferredEditor, selectedFile.Name)
+					_ = screen.Init()
+				}
 			} else if currentBox == 0 && len(boxes[currentBox]) > 0 { // Directory box
 				selectedFile := boxes[currentBox][selectedIndices[currentBox]]
 				up := false
@@ -119,6 +129,10 @@ func HandleUserInput(screen tcell.Screen, cfg *config.Config, currentBox int, us
 		case tcell.KeyBackspace, tcell.KeyBackspace2:
 			if currentBox == 2 && len(userInput) > 0 {
 				userInput = userInput[:len(userInput)-1]
+			}
+		case tcell.KeyCtrlU:
+			if currentBox == 2 {
+				userInput = userInput[:0]
 			}
 		case tcell.KeyRune:
 			if ev.Rune() == 'r' && ev.Modifiers() == (tcell.ModAlt) {
