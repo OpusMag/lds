@@ -9,13 +9,10 @@ import (
 	"lds/utils"
 	"log"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
-
-var wg sync.WaitGroup
 
 func main() {
 	cfg, err := ui.GetConfig()
@@ -54,7 +51,8 @@ func main() {
 	selectedIndices := []int{0, 0, 0, 0}
 
 	query := string(userInput)
-	directories, regularFiles, hiddenFiles, bestMatch := utils.ReadDirectoryAndUpdateBestMatch(screen, query)
+	directories, regularFiles, hiddenFiles, bestMatch := utils.ReadDirectoryAndUpdateBestMatch(screen, query, cfg.FileFilters.ShowHiddenFiles)
+	_ = hiddenFiles
 
 	for {
 		select {
@@ -98,6 +96,8 @@ func main() {
 			if currentBox == 1 && len(filteredFiles) > 0 {
 				selectedFile := filteredFiles[selectedIndices[1]]
 				ui.DrawFileContents(screen, 0, 0, boxWidth, increasedBoxHeight, selectedFile, textStyle)
+				// Also show file info for highlighted file
+				ui.DisplayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, selectedFile, labelStyle, valueStyle)
 			} else if currentBox == 0 && len(filteredDirectories) > 0 {
 				selectedFile := filteredDirectories[selectedIndices[0]]
 				ui.DisplayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, selectedFile, labelStyle, valueStyle)
@@ -105,7 +105,7 @@ func main() {
 				ui.DisplayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, *bestMatch, labelStyle, valueStyle)
 			}
 
-			ui.DrawASCIIArt(screen)
+			ui.DrawASCIIArt(screen, borderStyle)
 
 			for i, r := range userInput {
 				screen.SetContent(1+i, increasedBoxHeight+1, r, nil, textStyle)
@@ -124,6 +124,8 @@ func main() {
 			case 3:
 				ui.DrawBorder(screen, boxWidth, increasedBoxHeight, width-1, increasedBoxHeight+halfBoxHeight-1, focusedStyle)
 			}
+
+			ui.DrawStatusBar(screen, width, height, textStyle)
 
 			screen.Show()
 			currentBox, userInput, selectedIndices, scrollPositions, bestMatch =
