@@ -55,7 +55,7 @@ func extractFileInfo(info os.FileInfo) (lastAccessTime, creationTime string, siz
 	return
 }
 
-func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]config.FileInfo, []config.FileInfo, []config.FileInfo, *config.FileInfo) {
+func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidden bool) ([]config.FileInfo, []config.FileInfo, []config.FileInfo, *config.FileInfo) {
 	files, err := os.ReadDir(".")
 	if err != nil {
 		logging.LogErrorAndExit("Error reading directory", err)
@@ -66,6 +66,10 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]confi
 	for _, file := range files {
 		info, err := file.Info()
 		if err != nil {
+			continue
+		}
+
+		if !showHidden && strings.HasPrefix(info.Name(), ".") {
 			continue
 		}
 
