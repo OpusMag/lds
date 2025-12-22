@@ -18,7 +18,11 @@ func ExpandPath(path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(usr.HomeDir, path[1:], "/"), nil
+		trimmed := strings.TrimPrefix(path, "~")
+		if trimmed == "" {
+			return usr.HomeDir, nil
+		}
+		return filepath.Join(usr.HomeDir, strings.TrimPrefix(trimmed, string(os.PathSeparator))), nil
 	}
 	return path, nil
 }
@@ -56,7 +60,7 @@ func GetLastModified(modTime time.Time) string {
 }
 
 type FileSystemProvider interface {
-	ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string) ([]config.FileInfo, []config.FileInfo, []config.FileInfo, *config.FileInfo)
+	ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidden bool) ([]config.FileInfo, []config.FileInfo, []config.FileInfo, *config.FileInfo)
 	ChangeDirectoryAndRerun(directory string, up bool)
 	GetFileType(info os.FileInfo) string
 	GetLastModified(modTime time.Time) string
