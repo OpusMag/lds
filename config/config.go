@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 type Config struct {
@@ -98,6 +99,10 @@ type FileInfo struct {
 func ConfigLocations() []string {
 	var paths []string
 
+	if env := os.Getenv("LDS_CONFIG"); strings.TrimSpace(env) != "" {
+		paths = append(paths, env)
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		homeDir = ""
@@ -120,14 +125,18 @@ func ConfigLocations() []string {
 		}
 
 	default:
-		paths = []string{
+		if execPath, err := os.Executable(); err == nil {
+			execDir := filepath.Dir(execPath)
+			paths = append(paths, filepath.Join(execDir, "config.json"))
+		}
+		// System-wide locations
+		paths = append(paths,
 			"/etc/lds/config.json",
 			"/usr/local/etc/lds/config.json",
 			"/usr/local/lds/config.json",
 			"/usr/lds/config.json",
 			"/usr/local/bin/config.json",
-		}
-
+		)
 		if homeDir != "" {
 			paths = append(paths,
 				filepath.Join(homeDir, ".config", "lds", "config.json"),

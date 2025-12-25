@@ -26,6 +26,7 @@ func main() {
 		return
 	}
 	log.Printf("Config file found at: %s", configPath)
+	_ = os.Setenv("LDS_CONFIG", configPath)
 	logging.SetupLogging(cfg.Logging.File)
 
 	reloadConfig := make(chan struct{})
