@@ -18,26 +18,49 @@ import (
 )
 
 func ChangeDirectoryAndRerun(directory string, up bool) {
-	var cmdStr string
-
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get cwd: %v\n", err)
+		os.Exit(1)
+	}
+	var targetDir string
 	if up {
-		cmdStr = "cd .. && lds"
+		targetDir = filepath.Dir(cwd)
 	} else {
-		cleanDir := filepath.Clean(directory)
-		cmdStr = fmt.Sprintf("cd %q && lds", cleanDir)
+		targetDir = filepath.Clean(filepath.Join(cwd, directory))
 	}
 
-	cmd := exec.Command("sh", "-c", cmdStr)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	if err := cmd.Run(); err != nil {
+	info, err := os.Stat(targetDir)
+	if err != nil || !info.IsDir() {
+		if err == nil {
+			err = fmt.Errorf("%s is not a directory", targetDir)
+		}
 		fmt.Fprintf(os.Stderr, "Failed to change directory: %v\n", err)
 		os.Exit(1)
 	}
 
-	os.Exit(0)
+	if err := os.Chdir(targetDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to chdir: %v\n", err)
+		os.Exit(1)
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to locate executable: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := syscall.Exec(exePath, os.Args, os.Environ()); err != nil {
+		cmd := exec.Command(exePath, os.Args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		if err2 := cmd.Run(); err2 != nil {
+			fmt.Fprintf(os.Stderr, "Failed to rerun: %v\n", err2)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 }
 
 func extractFileInfo(info os.FileInfo) (lastAccessTime, creationTime string, size int64, fileType string, inode uint64, hardLinksCount uint64) {
