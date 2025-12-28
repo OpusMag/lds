@@ -47,11 +47,11 @@ Install Git and Go:
   ```
 - Fedora:
   ```sh
-  sudo dnf install git-all go
+  sudo dnf install git go
   ```
 - Ubuntu/Debian:
   ```sh
-  sudo apt install git-all golang-go
+  sudo apt install git golang-go
   ```
 - Snap:
   ```sh
@@ -62,7 +62,7 @@ Install Git and Go:
 
 Option A: Download the binary
 
-1. Go to the [latest release](https://github.com/OpusMag/lds) and download the binary.
+1. Go to the [latest release](https://github.com/OpusMag/lds/releases/latest) and download the binary.
 2. Make it executable:
    ```sh
    chmod +x ~/Downloads/lds
@@ -96,13 +96,13 @@ Option B: Build from source
 Install Git and Go:
 
 - Git: [Download Git](https://git-scm.com/download/win) and install it.
-- Go: [Download Go](https://golang.org/dl/) and follow the [installation guide](https://www.geeksforgeeks.org/how-to-install-go-on-windows/).
+- Go: [Download Go](https://go.dev/dl/) and follow the [installation guide](https://www.geeksforgeeks.org/how-to-install-go-on-windows/).
 
 #### Install `lds`
 
 Option A: Download the binary
 
-1. Go to the [latest release](https://github.com/OpusMag/lds) and download `lds.exe`.
+1. Go to the [latest release](https://github.com/OpusMag/lds/releases/latest) and download `lds.exe`.
 2. Move the binary to a directory (e.g., `C:\Tools`).
 3. Add the directory to PATH:
    - Press `Win + X` and select `System`.
@@ -123,13 +123,6 @@ Option B: Build from source
    go mod tidy
    go build -o lds.exe main.go
    ```
-
-### Create a directory for config and copy the config to it
-
-You need to create a directory for the config file and copy the config file to it (or make your own).
-
-```mkdir "C:\Users\YOURUSERNAME\AppData\Local\lds"
-copy "C:\Users\YOURUSERNAME\Downloads\lds\config.json" "C:\Users\YOURUSERNAME\AppData\Local\lds\config.json"```
 
 ### macOS
 
@@ -152,14 +145,14 @@ Install Git and Go:
     brew install go
     ```
   - Manual Installation:
-    1. [Download Go](https://golang.org/dl/).
+    1. [Download Go](https://go.dev/dl/).
     2. Open the downloaded `.pkg` file and follow the instructions to install Go.
 
 #### Install `lds`
 
 Option A: Download the binary
 
-1. Go to the [latest release](https://github.com/OpusMag/lds) and download the binary.
+1. Go to the [latest release](https://github.com/OpusMag/lds/releases/latest) and download the binary.
 2. Make it executable:
    ```sh
    chmod +x ~/Downloads/lds
@@ -204,7 +197,25 @@ How to navigate, configure and change keybindings in lds:
 
 ## Configuration
 
-The configuration file should by default be located at ~/.config/lds/config.json. You can however have the config file wherever you want, but you have to add the path to configPath in main.go if you choose a different location than the defaults. In the config file you can customize colors, key bindings, and other settings.
+Default config locations:
+- Linux and macOS: `~/.config/lds/config.json`
+- Windows: `%LOCALAPPDATA%\lds\config.json` (e.g., `C:\Users\YOURUSERNAME\AppData\Local\lds\config.json`)
+
+Create the directory and copy your config:
+
+- Linux/macOS:
+  ```sh
+  mkdir -p ~/.config/lds
+  cp /path/to/config.json ~/.config/lds/config.json
+  ```
+
+- Windows (Command Prompt):
+  ```bat
+  mkdir "%LOCALAPPDATA%\lds"
+  copy "C:\path\to\config.json" "%LOCALAPPDATA%\lds\config.json"
+  ```
+
+In the config file you can customize colors, key bindings, and other settings.
 
 ## Key Bindings
 
