@@ -91,13 +91,18 @@ func main() {
 			filteredFiles := utils.FilterFiles(append(regularFiles, hiddenFiles...), inputStr)
 			bestMatch = utils.FindBestMatch(filteredDirectories, filteredFiles, nil, inputStr)
 
-			ui.DrawBox(screen, 0, 0, boxWidth, increasedBoxHeight, filteredDirectories, selectedIndices[0], scrollPositions[0], textStyle, highlightStyle, currentBox == 0)
+			var dirItems []config.FileInfo
+			if currentBox != 1 {
+				dirItems = filteredDirectories
+			} else {
+				dirItems = []config.FileInfo{}
+			}
+			ui.DrawBox(screen, 0, 0, boxWidth, increasedBoxHeight, dirItems, selectedIndices[0], scrollPositions[0], textStyle, highlightStyle, currentBox == 0)
 			ui.DrawBox(screen, boxWidth, 0, width-boxWidth, increasedBoxHeight, filteredFiles, selectedIndices[1], scrollPositions[1], textStyle, highlightStyle, currentBox == 1)
 
 			if currentBox == 1 && len(filteredFiles) > 0 {
 				selectedFile := filteredFiles[selectedIndices[1]]
 				ui.DrawFileContents(screen, 0, 0, boxWidth, increasedBoxHeight, selectedFile, textStyle)
-				// Also show file info for highlighted file
 				ui.DisplayFileInfo(screen, boxWidth+3, increasedBoxHeight+1, width-1, selectedFile, labelStyle, valueStyle)
 			} else if currentBox == 0 && len(filteredDirectories) > 0 {
 				selectedFile := filteredDirectories[selectedIndices[0]]
