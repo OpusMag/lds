@@ -2,42 +2,51 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+
+	"lds/app"
 	"lds/config"
 	"lds/events"
 	"lds/logging"
-	"lds/ui"
-	"lds/utils"
-	"log"
-	"os"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 func main() {
-	cfg, err := ui.GetConfig()
+	cfgPath, err := config.FindConfigFile()
+	if err != nil {
+		if cerr, ok := err.(*config.ConfigError); ok {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", cerr.Message)
+			fmt.Fprintln(os.Stderr, "Searched in the following locations:")
+			for _, p := range cerr.Paths {
+				fmt.Fprintf(os.Stderr, "  - %s\n", p)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "Error finding config: %v\n", err)
+		}
+		os.Exit(1)
+	}
+
+	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-		return
+		os.Exit(1)
 	}
-	configPath, err := config.FindConfigFile()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error finding config: %v\n", err)
-		return
-	}
-	log.Printf("Config file found at: %s", configPath)
-	_ = os.Setenv("LDS_CONFIG", configPath)
+
+	log.Printf("Config file found at: %s", cfgPath)
+	_ = os.Setenv("LDS_CONFIG", cfgPath)
 	logging.SetupLogging(cfg.Logging.File)
 
-	reloadConfig := make(chan struct{})
-	go events.WatchConfigFile(configPath, reloadConfig)
+	reload := make(chan struct{})
+	errs := make(chan error, 1)
+	go events.WatchConfigFile(cfgPath, reload, errs)
 
 	screen, err := tcell.NewScreen()
 	if err != nil {
 		logging.LogErrorAndExit("Error creating screen", err)
 	}
-	err = screen.Init()
-	if err != nil {
+	if err := screen.Init(); err != nil {
 		logging.LogErrorAndExit("Error initializing screen", err)
 	}
 	defer screen.Fini()
