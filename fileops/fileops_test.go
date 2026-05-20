@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -159,15 +160,18 @@ func TestReadFileContents_LineCap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Should be capped at 200 lines.
+	// Should be capped at 200 lines plus a truncation marker line.
 	lines := 1
 	for _, r := range got {
 		if r == '\n' {
 			lines++
 		}
 	}
-	if lines > 200 {
-		t.Errorf("expected <=200 lines, got %d", lines)
+	if lines > 201 {
+		t.Errorf("expected <=201 lines (200 + truncation marker), got %d", lines)
+	}
+	if !strings.Contains(got, "[... file truncated ...]") {
+		t.Errorf("expected truncation marker in output")
 	}
 }
 
