@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -33,11 +32,13 @@ type Config struct {
 		SelectUp    string `json:"selectUp"`
 		SelectDown  string `json:"selectDown"`
 		Execute     string `json:"execute"`
+		GoBack      string `json:"goBack"`
 		Backspace   string `json:"backspace"`
 		Rename      string `json:"rename"`
 		Move        string `json:"move"`
 		Delete      string `json:"delete"`
 		Copy        string `json:"copy"`
+		ParentDir   string `json:"parentDir"`
 	} `json:"keyBindings"`
 	Theme  string `json:"theme"`
 	Themes struct {
@@ -67,6 +68,7 @@ type Config struct {
 		Duration int  `json:"duration"`
 	} `json:"notifications"`
 	Language string `json:"language"`
+	// AutoSave is reserved/unused: retained for config schema stability.
 	AutoSave struct {
 		Enabled  bool `json:"enabled"`
 		Interval int  `json:"interval"`
@@ -76,24 +78,6 @@ type Config struct {
 		File  string `json:"file"`
 	} `json:"logging"`
 	PreferredEditor string `json:"preferredEditor"`
-}
-
-type FileInfo struct {
-	Name           string
-	Permissions    string
-	Owner          string
-	IsExecutable   bool
-	IsSymlink      bool
-	SymlinkTarget  string
-	MountPoint     string
-	SELinuxContext string
-	GitRepoStatus  string
-	LastAccessTime string
-	CreationTime   string
-	Size           int64
-	FileType       string
-	Inode          uint64
-	HardLinksCount uint64
 }
 
 func ConfigLocations() []string {
@@ -129,7 +113,6 @@ func ConfigLocations() []string {
 			execDir := filepath.Dir(execPath)
 			paths = append(paths, filepath.Join(execDir, "config.json"))
 		}
-		// System-wide locations
 		paths = append(paths,
 			"/etc/lds/config.json",
 			"/usr/local/etc/lds/config.json",
@@ -188,7 +171,7 @@ func (e *ConfigError) Error() string {
 }
 
 func LoadConfig(filename string) (*Config, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
