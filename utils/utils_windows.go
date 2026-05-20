@@ -4,37 +4,14 @@ package utils
 
 import (
 	"fmt"
-	"lds/config"
-	"lds/logging"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/gdamore/tcell/v2"
+	"lds/fsinfo"
+	"lds/logging"
 )
-
-type WindowsNavigator struct {
-	executablePath string
-	workingDir     string
-}
-
-func NewWindowsNavigator() (*WindowsNavigator, error) {
-	execPath, err := os.Executable()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine executable path: %w", err)
-	}
-
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	return &WindowsNavigator{
-		executablePath: execPath,
-		workingDir:     workingDir,
-	}, nil
-}
 
 func ChangeDirectoryAndRerun(directory string, up bool) {
 	var targetDir string
@@ -71,13 +48,11 @@ func ChangeDirectoryAndRerun(directory string, up bool) {
 	os.Exit(0)
 }
 
-func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidden bool) ([]config.FileInfo, []config.FileInfo, []config.FileInfo, *config.FileInfo) {
+func ReadDirectoryAndUpdateBestMatch(query string, showHidden bool) (directories, regularFiles []fsinfo.FileInfo, bestMatch *fsinfo.FileInfo) {
 	files, err := os.ReadDir(".")
 	if err != nil {
 		logging.LogErrorAndExit("Error reading directory", err)
 	}
-
-	var directories, regularFiles []config.FileInfo
 
 	for _, file := range files {
 		info, err := file.Info()
@@ -89,30 +64,16 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidd
 			continue
 		}
 
-		var isExecutable, isSymlink bool
-		var symlinkTarget, gitRepoStatus, lastAccessTime, creationTime string
-		var size int64
-		var fileType string
-
-		isExecutable = false
-		isSymlink = false
-		symlinkTarget = "N/A"
-		gitRepoStatus = "N/A"
-		lastAccessTime = GetLastModified(info.ModTime())
-		creationTime = GetLastModified(info.ModTime())
-		size = info.Size()
-		fileType = GetFileType(info)
-
-		fileInfo := config.FileInfo{
+		fileInfo := fsinfo.FileInfo{
 			Name:           info.Name(),
-			IsExecutable:   isExecutable,
-			IsSymlink:      isSymlink,
-			SymlinkTarget:  symlinkTarget,
-			GitRepoStatus:  gitRepoStatus,
-			LastAccessTime: lastAccessTime,
-			CreationTime:   creationTime,
-			Size:           size,
-			FileType:       fileType,
+			IsExecutable:   false,
+			IsSymlink:      false,
+			SymlinkTarget:  "N/A",
+			GitRepoStatus:  "N/A",
+			LastAccessTime: GetLastModified(info.ModTime()),
+			CreationTime:   GetLastModified(info.ModTime()),
+			Size:           info.Size(),
+			FileType:       GetFileType(info),
 		}
 
 		if info.IsDir() {
@@ -124,7 +85,7 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidd
 
 	filteredDirectories := FilterFiles(directories, query)
 	filteredFiles := FilterFiles(regularFiles, query)
-	bestMatch := FindBestMatch(filteredDirectories, filteredFiles, nil, query)
+	bestMatch = FindBestMatch(filteredDirectories, filteredFiles, nil, query)
 
-	return filteredDirectories, filteredFiles, nil, bestMatch
+	return directories, regularFiles, bestMatch
 }
