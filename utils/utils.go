@@ -2,29 +2,18 @@ package utils
 
 import (
 	"fmt"
-	"lds/config"
 	"os"
-	"os/user"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
+	"lds/fsinfo"
+	"lds/pathx"
 )
 
+// ExpandPath is retained as a thin re-export of pathx.ExpandPath for one
+// release. Prefer importing pathx directly.
 func ExpandPath(path string) (string, error) {
-	if strings.HasPrefix(path, "~") {
-		usr, err := user.Current()
-		if err != nil {
-			return "", err
-		}
-		trimmed := strings.TrimPrefix(path, "~")
-		if trimmed == "" {
-			return usr.HomeDir, nil
-		}
-		return filepath.Join(usr.HomeDir, strings.TrimPrefix(trimmed, string(os.PathSeparator))), nil
-	}
-	return path, nil
+	return pathx.ExpandPath(path)
 }
 
 func GetFileType(info os.FileInfo) string {
@@ -59,19 +48,11 @@ func GetLastModified(modTime time.Time) string {
 	}
 }
 
-type FileSystemProvider interface {
-	ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidden bool) ([]config.FileInfo, []config.FileInfo, []config.FileInfo, *config.FileInfo)
-	ChangeDirectoryAndRerun(directory string, up bool)
-	GetFileType(info os.FileInfo) string
-	GetLastModified(modTime time.Time) string
-	ExpandPath(path string) (string, error)
-}
-
-func FilterFiles(files []config.FileInfo, query string) []config.FileInfo {
+func FilterFiles(files []fsinfo.FileInfo, query string) []fsinfo.FileInfo {
 	if query == "" {
 		return files
 	}
-	var filtered []config.FileInfo
+	var filtered []fsinfo.FileInfo
 	for _, file := range files {
 		if strings.Contains(strings.ToLower(file.Name), strings.ToLower(query)) {
 			filtered = append(filtered, file)
@@ -80,14 +61,12 @@ func FilterFiles(files []config.FileInfo, query string) []config.FileInfo {
 	return filtered
 }
 
-func FindBestMatch(directories, files, hiddenFiles []config.FileInfo, query string) *config.FileInfo {
+func FindBestMatch(directories, files, hiddenFiles []fsinfo.FileInfo, query string) *fsinfo.FileInfo {
 	allFiles := append(directories, append(files, hiddenFiles...)...)
-	var bestMatch *config.FileInfo
-	for _, file := range allFiles {
+	for i, file := range allFiles {
 		if strings.Contains(strings.ToLower(file.Name), strings.ToLower(query)) {
-			bestMatch = &file
-			break
+			return &allFiles[i]
 		}
 	}
-	return bestMatch
+	return nil
 }
