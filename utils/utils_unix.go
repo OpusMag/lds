@@ -4,17 +4,15 @@ package utils
 
 import (
 	"fmt"
-	"lds/config"
-	"lds/logging"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
-	"github.com/gdamore/tcell/v2"
+	"lds/fsinfo"
+	"lds/logging"
 )
 
 func ChangeDirectoryAndRerun(directory string, up bool) {
@@ -78,13 +76,16 @@ func extractFileInfo(info os.FileInfo) (lastAccessTime, creationTime string, siz
 	return
 }
 
-func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidden bool) ([]config.FileInfo, []config.FileInfo, []config.FileInfo, *config.FileInfo) {
+// ReadDirectoryAndUpdateBestMatch scans the current directory and returns
+// directories, regular files, and the best match for the supplied query.
+// Subprocess-based metadata (mount point, SELinux context, git status) is
+// deferred to EnrichFileInfo so it is only computed for the highlighted
+// entry.
+func ReadDirectoryAndUpdateBestMatch(query string, showHidden bool) (directories, regularFiles []fsinfo.FileInfo, bestMatch *fsinfo.FileInfo) {
 	files, err := os.ReadDir(".")
 	if err != nil {
 		logging.LogErrorAndExit("Error reading directory", err)
 	}
-
-	var directories, regularFiles []config.FileInfo
 
 	for _, file := range files {
 		info, err := file.Info()
@@ -105,16 +106,13 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidd
 
 		isExecutable := info.Mode()&0111 != 0
 
-		fileInfo := config.FileInfo{
+		fileInfo := fsinfo.FileInfo{
 			Name:           info.Name(),
 			Permissions:    info.Mode().String(),
 			Owner:          owner,
 			IsExecutable:   isExecutable,
 			IsSymlink:      isSymlink,
 			SymlinkTarget:  symlinkTarget,
-			MountPoint:     getMountPoint(info),
-			SELinuxContext: getSELinuxContext(info),
-			GitRepoStatus:  getGitRepoStatus(file),
 			LastAccessTime: lastAccessTime,
 			CreationTime:   creationTime,
 			Size:           size,
@@ -132,9 +130,9 @@ func ReadDirectoryAndUpdateBestMatch(screen tcell.Screen, query string, showHidd
 
 	filteredDirectories := FilterFiles(directories, query)
 	filteredFiles := FilterFiles(regularFiles, query)
-	bestMatch := FindBestMatch(filteredDirectories, filteredFiles, nil, query)
+	bestMatch = FindBestMatch(filteredDirectories, filteredFiles, nil, query)
 
-	return filteredDirectories, filteredFiles, nil, bestMatch
+	return directories, regularFiles, bestMatch
 }
 
 func getOwnerInfo(stat *syscall.Stat_t) string {
@@ -168,59 +166,4 @@ func getSymlinkStatus(file os.DirEntry) (bool, string) {
 		return true, target
 	}
 	return false, ""
-}
-
-func getMountPoint(info os.FileInfo) string {
-	cmd := exec.Command("findmnt", "-n", "-o", "TARGET", "--target", info.Name())
-	output, err := cmd.Output()
-	if err != nil {
-		return "N/A"
-	}
-	return strings.TrimSpace(string(output))
-}
-
-func getSELinuxContext(info os.FileInfo) string {
-	cmd := exec.Command("ls", "-Z", info.Name())
-	output, err := cmd.Output()
-	if err != nil {
-		return "N/A"
-	}
-	parts := strings.Fields(string(output))
-	if len(parts) > 3 {
-		return parts[3] // SELinux context is usually the 4th field
-	}
-	return "N/A"
-}
-
-func getGitRepoStatus(file os.DirEntry) string {
-	if file.IsDir() {
-		gitDir := fmt.Sprintf("%s/.git", file.Name())
-		if _, err := os.Stat(gitDir); os.IsNotExist(err) {
-			return "Not a git repository"
-		}
-		return "Git repository"
-	} else {
-		cmd := exec.Command("git", "status", "--porcelain", file.Name())
-		output, err := cmd.Output()
-		if err != nil {
-			return "Not a git repository"
-		}
-		if len(output) == 0 {
-			return "Clean"
-		}
-		return "Modified"
-	}
-}
-
-func getLastModified(modTime time.Time) string {
-	duration := time.Since(modTime)
-	if duration.Hours() < 24 {
-		return fmt.Sprintf("%d hours ago", int(duration.Hours()))
-	} else if duration.Hours() < 24*30 {
-		return fmt.Sprintf("%d days ago", int(duration.Hours()/24))
-	} else if duration.Hours() < 24*365 {
-		return fmt.Sprintf("%d months ago", int(duration.Hours()/(24*30)))
-	} else {
-		return fmt.Sprintf("%d years ago", int(duration.Hours()/(24*365)))
-	}
 }
