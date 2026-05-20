@@ -15,29 +15,50 @@ import (
 )
 
 // WatchConfigFile watches filename for write events, signalling reload, and
-// reports unrecoverable errors via errs. The caller is responsible for
-// reacting to errs (typically by tearing down and returning).
-func WatchConfigFile(filename string, reload chan<- struct{}, errs chan<- error) {
+// reports unrecoverable startup errors via errs. Transient watcher errors
+// are logged but not propagated. The goroutine exits when stop is closed
+// or its channels return !ok.
+func WatchConfigFile(filename string, reload chan<- struct{}, errs chan<- error, stop <-chan struct{}) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		errs <- err
+		select {
+		case errs <- err:
+		case <-stop:
+		}
 		return
 	}
 	defer watcher.Close()
 
 	if err := watcher.Add(filename); err != nil {
-		errs <- err
+		select {
+		case errs <- err:
+		case <-stop:
+		}
 		return
 	}
 
 	for {
 		select {
-		case event := <-watcher.Events:
-			if event.Op&fsnotify.Write == fsnotify.Write {
-				reload <- struct{}{}
+		case <-stop:
+			return
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
 			}
-		case err := <-watcher.Errors:
-			log.Println("error:", err)
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				select {
+				case reload <- struct{}{}:
+				case <-stop:
+					return
+				default:
+					// reload is buffered (cap 1) and already pending; drop.
+				}
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			log.Println("watcher error:", err)
 		}
 	}
 }
