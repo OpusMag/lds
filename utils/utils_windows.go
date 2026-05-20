@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"lds/fsinfo"
-	"lds/logging"
 )
 
 func ChangeDirectoryAndRerun(directory string, up bool) {
@@ -48,10 +47,11 @@ func ChangeDirectoryAndRerun(directory string, up bool) {
 	os.Exit(0)
 }
 
-func ReadDirectoryAndUpdateBestMatch(query string, showHidden bool) (directories, regularFiles []fsinfo.FileInfo, bestMatch *fsinfo.FileInfo) {
-	files, err := os.ReadDir(".")
-	if err != nil {
-		logging.LogErrorAndExit("Error reading directory", err)
+func ReadDirectoryAndUpdateBestMatch(query string, showHidden bool) (directories, regularFiles []fsinfo.FileInfo, bestMatch *fsinfo.FileInfo, err error) {
+	files, readErr := os.ReadDir(".")
+	if readErr != nil {
+		err = readErr
+		return
 	}
 
 	for _, file := range files {
@@ -87,5 +87,5 @@ func ReadDirectoryAndUpdateBestMatch(query string, showHidden bool) (directories
 	filteredFiles := FilterFiles(regularFiles, query)
 	bestMatch = FindBestMatch(filteredDirectories, filteredFiles, nil, query)
 
-	return directories, regularFiles, bestMatch
+	return directories, regularFiles, bestMatch, nil
 }
