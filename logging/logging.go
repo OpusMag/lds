@@ -3,24 +3,12 @@ package logging
 import (
 	"log"
 	"os"
-	"os/user"
-	"path/filepath"
-	"strings"
+
+	"lds/pathx"
 )
 
-func ExpandPath(path string) (string, error) {
-	if strings.HasPrefix(path, "~") {
-		usr, err := user.Current()
-		if err != nil {
-			return "", err
-		}
-		return filepath.Join(usr.HomeDir, path[1:]), nil
-	}
-	return path, nil
-}
-
 func SetupLogging(logFile string) {
-	logFilePath, err := ExpandPath(logFile)
+	logFilePath, err := pathx.ExpandPath(logFile)
 	if err != nil {
 		log.Fatalf("Failed to expand log file path: %v", err)
 	}
