@@ -71,25 +71,6 @@ func OpenFileInEditor(editor, fileName string) {
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running editor: %v\nTried: %q with args %q\n", err, bin, args)
-
-		var fallback *exec.Cmd
-		if runtime.GOOS == "windows" {
-			var cmdStr string
-			if fileExists(ed) {
-				cmdStr = fmt.Sprintf("%q %q", ed, fileName)
-			} else {
-				cmdStr = fmt.Sprintf("%s %q", ed, fileName)
-			}
-			fallback = exec.Command("cmd.exe", "/C", cmdStr)
-		} else {
-			fallback = exec.Command("sh", "-c", fmt.Sprintf("%s %q", ed, fileName))
-		}
-		fallback.Stdout = os.Stdout
-		fallback.Stderr = os.Stderr
-		fallback.Stdin = os.Stdin
-		if err2 := fallback.Run(); err2 != nil {
-			fmt.Fprintf(os.Stderr, "Shell fallback also failed: %v\n", err2)
-		}
 	}
 }
 
@@ -103,16 +84,22 @@ func ReadFileContents(fileName string) (string, error) {
 	var lines []string
 	scanner := bufio.NewScanner(file)
 	lineCount := 0
+	truncated := false
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 		lineCount++
 		if lineCount >= 200 {
+			truncated = true
 			break
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		return "", err
+	}
+
+	if truncated {
+		lines = append(lines, "[... file truncated ...]")
 	}
 
 	return strings.Join(lines, "\n"), nil
