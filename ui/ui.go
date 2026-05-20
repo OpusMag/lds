@@ -2,40 +2,63 @@ package ui
 
 import (
 	"fmt"
+	"strings"
+
 	"lds/config"
 	"lds/fileops"
-	"strings"
-	"os"
+	"lds/fsinfo"
+
 	"github.com/gdamore/tcell/v2"
 )
 
-var (
-	Titles             = []string{"Directories", "Files", "Search"}
-	IncreasedBoxHeight int
+var Titles = []string{"Directories", "Files", "Search", "File Info"}
+
+// Layout holds the per-frame layout dimensions computed from the screen size.
+type Layout struct {
+	Width, Height      int
+	BoxWidth           int
 	HalfBoxHeight      int
-)
+	IncreasedBoxHeight int
+}
 
-func GetConfig() (*config.Config, error) {
-	configPath, err := config.FindConfigFile()
-	if err != nil {
-		if configErr, ok := err.(*config.ConfigError); ok {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", configErr.Message)
-			fmt.Fprintf(os.Stderr, "Searched in the following locations:\n")
-			for _, path := range configErr.Paths {
-				fmt.Fprintf(os.Stderr, "  - %s\n", path)
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "Error finding config: %v\n", err)
-		}
-		return nil, err
+// ComputeLayout returns the Layout for the given screen size. Replaces the
+// older global-mutating CalculateBoxDimensions.
+func ComputeLayout(width, height int) Layout {
+	boxWidth := width / 2
+	boxHeight := height / 2
+	half := boxHeight / 2
+	return Layout{
+		Width:              width,
+		Height:             height,
+		BoxWidth:           boxWidth,
+		HalfBoxHeight:      half,
+		IncreasedBoxHeight: boxHeight + half,
 	}
+}
 
-	cfg, err := config.LoadConfig(configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-		return nil, err
+// Styles is the set of resolved tcell styles for the current config. Built
+// once per config load via NewStyles.
+type Styles struct {
+	Text      tcell.Style
+	Border    tcell.Style
+	Highlight tcell.Style
+	Blinking  tcell.Style
+	Label     tcell.Style
+	Value     tcell.Style
+	Focused   tcell.Style
+}
+
+// NewStyles resolves a Styles set from the config's colour palette.
+func NewStyles(cfg *config.Config) Styles {
+	return Styles{
+		Text:      tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Text)),
+		Border:    tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Border)),
+		Highlight: tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Highlight)).Bold(true),
+		Blinking:  tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Blinking)).Bold(true),
+		Label:     tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Label)),
+		Value:     tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Value)).Bold(true),
+		Focused:   tcell.StyleDefault.Foreground(tcell.GetColor(cfg.Colors.Focused)).Bold(true),
 	}
-	return cfg, nil
 }
 
 func DrawBorder(screen tcell.Screen, x1, y1, x2, y2 int, style tcell.Style) {
@@ -53,15 +76,7 @@ func DrawBorder(screen tcell.Screen, x1, y1, x2, y2 int, style tcell.Style) {
 	screen.SetContent(x2, y2, tcell.RuneLRCorner, nil, style)
 }
 
-func CalculateBoxDimensions(width, height int) (int, int, int, int) {
-	boxWidth := width / 2
-	boxHeight := height / 2
-	HalfBoxHeight = boxHeight / 2
-	IncreasedBoxHeight = boxHeight + HalfBoxHeight
-	return boxWidth, boxHeight, HalfBoxHeight, IncreasedBoxHeight
-}
-
-func DrawBox(screen tcell.Screen, x, y, width, height int, files []config.FileInfo, selectedIndex int, scrollPosition int, textStyle, highlightStyle tcell.Style, isFocused bool) {
+func DrawBox(screen tcell.Screen, x, y, width, height int, files []fsinfo.FileInfo, selectedIndex int, scrollPosition int, textStyle, highlightStyle tcell.Style, isFocused bool) {
 	maxLines := height - 2
 	for i := scrollPosition; i < len(files) && i < scrollPosition+maxLines; i++ {
 		file := files[i]
@@ -79,21 +94,18 @@ func DrawBox(screen tcell.Screen, x, y, width, height int, files []config.FileIn
 	}
 }
 
-func DrawTitles(screen tcell.Screen, x, y, width, height int, unused string, style tcell.Style) {
-	boxWidth, _, _, increasedBoxHeight := CalculateBoxDimensions(width, height)
-	titles := []string{"Directories", "Files", "Search", "File Info"}
-
-	for i, title := range titles {
+func DrawTitles(screen tcell.Screen, layout Layout, style tcell.Style) {
+	for i, title := range Titles {
 		var tx, ty int
 		switch i {
 		case 0:
 			tx, ty = 1, 0
 		case 1:
-			tx, ty = boxWidth+1, 0
+			tx, ty = layout.BoxWidth+1, 0
 		case 2:
-			tx, ty = 1, increasedBoxHeight
+			tx, ty = 1, layout.IncreasedBoxHeight
 		case 3:
-			tx, ty = boxWidth+1, increasedBoxHeight
+			tx, ty = layout.BoxWidth+1, layout.IncreasedBoxHeight
 		}
 		for j, r := range title {
 			screen.SetContent(tx+j, ty, r, nil, style)
@@ -107,29 +119,30 @@ func DrawText(screen tcell.Screen, x, y int, text string) {
 	}
 }
 
-func DrawFileContents(screen tcell.Screen, x, y, boxWidth, boxHeight int, file config.FileInfo, style tcell.Style) {
-	fileContents, err := fileops.ReadFileContents(file.Name)
-	if err != nil {
-		displayText(screen, x+1, y+1, fmt.Sprintf("Error reading file: %v", err), style, boxWidth-3)
+// DrawFilePreview renders a preview of file into the pane at (x,y,w,h).
+// The pane is split: the upper half (h/2) is assumed to contain metadata
+// drawn by DisplayFileInfo; the lower remainder is used for the preview.
+func DrawFilePreview(screen tcell.Screen, x, y, w, h int, file fsinfo.FileInfo, style tcell.Style) {
+	split := h / 2
+	previewY := y + split
+	previewH := h - split
+	if previewH <= 0 {
 		return
 	}
-	lines := strings.Split(fileContents, "\n")
+	contents, err := fileops.ReadFileContents(file.Name)
+	if err != nil {
+		displayText(screen, x+1, previewY, fmt.Sprintf("Error reading file: %v", err), style, w-2)
+		return
+	}
+	lines := strings.Split(contents, "\n")
 	contentX := x + 1
-	contentWidth := boxWidth - 3
-	maxLines := boxHeight - 2
-
+	contentWidth := w - 2
 	for i, line := range lines {
-		if i >= maxLines {
+		if i >= previewH {
 			break
 		}
-		displayText(screen, contentX, y+1+i, line, style, contentWidth)
+		displayText(screen, contentX, previewY+i, line, style, contentWidth)
 	}
-}
-
-func DrawTitle(screen tcell.Screen, title string) {
-	width, _ := screen.Size()
-	titleX := width/2 - len(title)/2
-	DrawText(screen, titleX, 0, title)
 }
 
 func DrawPrompt(screen tcell.Screen, prompt string) {
@@ -216,7 +229,7 @@ func formatFileSize(size int64) string {
 	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
 
-func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileInfo, labelStyle, valueStyle tcell.Style) {
+func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file fsinfo.FileInfo, labelStyle, valueStyle tcell.Style) {
 	if screen == nil {
 		return
 	}
@@ -261,7 +274,7 @@ func DisplayFileInfo(screen tcell.Screen, x, y, maxWidth int, file config.FileIn
 }
 
 func DrawStatusBar(screen tcell.Screen, width, height int, style tcell.Style) {
-	msg := "Tab: next box • Shift+Tab: parent dir • Enter: open/go into • ↑/↓: navigate • Ctrl+U: clear search"
+	msg := "Tab: next box • Shift+Tab: prev box • Alt+Up/Backspace: parent dir • Enter: open/go into • ↑/↓: navigate • Ctrl+U: clear search"
 	y := height - 1
 	for i, r := range msg {
 		if 1+i >= width {
