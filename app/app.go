@@ -61,7 +61,7 @@ type App struct {
 // New constructs an App. cfg/cfgPath are pre-resolved; reload and errs are
 // signalled by the config watcher goroutine. The screen must already be
 // initialised by the caller; the caller is responsible for screen.Fini().
-func New(cfg *config.Config, cfgPath string, screen tcell.Screen, reload chan struct{}, errs chan error) *App {
+func New(cfg *config.Config, cfgPath string, screen tcell.Screen, reload chan struct{}, errs chan error) (*App, error) {
 	a := &App{
 		cfg:           cfg,
 		cfgPath:       cfgPath,
@@ -72,8 +72,10 @@ func New(cfg *config.Config, cfgPath string, screen tcell.Screen, reload chan st
 		cursorVisible: true,
 	}
 	a.applyConfig()
-	a.scanDir()
-	return a
+	if err := a.scanDir(); err != nil {
+		return nil, err
+	}
+	return a, nil
 }
 
 func (a *App) applyConfig() {
@@ -85,11 +87,15 @@ func (a *App) applyConfig() {
 	a.keymap = km
 }
 
-func (a *App) scanDir() {
-	directories, regularFiles, bestMatch := utils.ReadDirectoryAndUpdateBestMatch("", a.cfg.FileFilters.ShowHiddenFiles)
+func (a *App) scanDir() error {
+	directories, regularFiles, bestMatch, err := utils.ReadDirectoryAndUpdateBestMatch("", a.cfg.FileFilters.ShowHiddenFiles)
+	if err != nil {
+		return err
+	}
 	a.directories = directories
 	a.regularFiles = regularFiles
 	a.bestMatch = bestMatch
+	return nil
 }
 
 func (a *App) reloadConfig() {
@@ -100,6 +106,7 @@ func (a *App) reloadConfig() {
 	}
 	a.cfg = cfg
 	a.applyConfig()
+	_ = a.scanDir()
 	log.Println("Config reloaded")
 }
 
