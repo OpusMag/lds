@@ -43,8 +43,13 @@ func EnrichFileInfo(fi *fsinfo.FileInfo) {
 	if err != nil {
 		return
 	}
-	info, err := os.Stat(fi.Name)
+	info, err := os.Lstat(abs)
 	if err != nil {
+		return
+	}
+	// Skip enrichment for symlinks; resolving them invites TOCTOU and
+	// the metadata wouldn't describe the symlink itself anyway.
+	if info.Mode()&os.ModeSymlink != 0 {
 		return
 	}
 	key := metaKey{Path: abs, ModTime: info.ModTime()}
@@ -56,11 +61,12 @@ func EnrichFileInfo(fi *fsinfo.FileInfo) {
 		return
 	}
 	v := metaVal{
-		Mount:   getMountPoint(fi.Name),
-		SELinux: getSELinuxContext(fi.Name),
-		Git:     getGitRepoStatus(fi.Name, info.IsDir()),
+		Mount:   getMountPoint(abs),
+		SELinux: getSELinuxContext(abs),
+		Git:     getGitRepoStatus(abs, info.IsDir()),
 	}
-	metaCache.Store(key, v)
+	actual, _ := metaCache.LoadOrStore(key, v)
+	v = actual.(metaVal)
 	fi.MountPoint = v.Mount
 	fi.SELinuxContext = v.SELinux
 	fi.GitRepoStatus = v.Git
