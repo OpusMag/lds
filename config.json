@@ -27,7 +27,8 @@
         "rename": "Ctrl+Alt+R",
         "move": "Ctrl+Alt+M",
         "delete": "Ctrl+Alt+D",
-        "copy": "Ctrl+Alt+C"
+        "copy": "Ctrl+Alt+C",
+        "parentDir": "Alt+Up"
     },
     "font": {
         "size": 12,
